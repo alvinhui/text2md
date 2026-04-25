@@ -243,17 +243,46 @@
       markdownOutput.value = turndownService.turndown(html).trim();
     }
 
+    function fallbackCopyText(text) {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.setAttribute("readonly", "");
+      textArea.style.position = "fixed";
+      textArea.style.opacity = "0";
+      textArea.style.pointerEvents = "none";
+      document.body.appendChild(textArea);
+      textArea.select();
+      textArea.setSelectionRange(0, text.length);
+      const copied = document.execCommand("copy");
+      document.body.removeChild(textArea);
+      return copied;
+    }
+
     async function copyText(text, button) {
       if (!text) return;
+      let copied = false;
       try {
-        await navigator.clipboard.writeText(text);
-        const oldText = button.textContent;
-        button.textContent = "已复制";
-        setTimeout(() => { button.textContent = oldText; }, 1200);
+        if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          copied = true;
+        } else {
+          copied = fallbackCopyText(text);
+        }
       } catch (error) {
-        alert("复制失败，请检查浏览器权限后重试");
-        console.error(error);
+        copied = fallbackCopyText(text);
+        if (!copied) {
+          console.error(error);
+        }
       }
+
+      if (!copied) {
+        alert("复制失败，请检查浏览器权限后重试");
+        return;
+      }
+
+      const oldText = button.textContent;
+      button.textContent = "已复制";
+      setTimeout(() => { button.textContent = oldText; }, 1200);
     }
 
     quill.on("text-change", toMarkdown);

@@ -1,11 +1,12 @@
 "use client";
 
 import createDOMPurify from "dompurify";
-import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import PreviewSurface from "../components/PreviewSurface";
+import ToolModeSwitch from "../components/ToolModeSwitch";
 import { copyWithFallback } from "../utils/copy";
 import { renderMarkdownToHtml } from "../utils/markdown-renderer";
+import { flashText } from "../utils/ui-feedback";
 
 const INITIAL_MARKDOWN = `# Markdown 转富文本示例
 
@@ -88,13 +89,11 @@ export default function Md2rtClient() {
     const copied = await copyWithFallback(safeHtml);
 
     if (!copied) {
-      setCopyText("复制失败");
-      setTimeout(() => setCopyText("复制富文本HTML"), 1200);
+      flashText(setCopyText, "复制失败", "复制富文本HTML");
       return;
     }
 
-    setCopyText("已复制");
-    setTimeout(() => setCopyText("复制富文本HTML"), 1200);
+    flashText(setCopyText, "已复制", "复制富文本HTML");
   }, [safeHtml]);
 
   const insertSnippet = useCallback((snippet: string) => {
@@ -104,11 +103,7 @@ export default function Md2rtClient() {
   return (
     <main className="container">
       <h1>富文本与Markdown在线双向转换工具</h1>
-      <div className="mode-switch">
-        <Link className="mode-btn" href="/rt2md">富文本 -&gt; Markdown</Link>
-        <Link className="mode-btn active" href="/md2rt">Markdown -&gt; 富文本</Link>
-        <Link className="mode-btn" href="/wx2md">微信文章 -&gt; Markdown</Link>
-      </div>
+      <ToolModeSwitch active="md2rt" />
 
       <section className="panels">
         <article className="panel">

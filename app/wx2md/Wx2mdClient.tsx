@@ -1,13 +1,14 @@
 "use client";
 
 import createDOMPurify from "dompurify";
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import TurndownService from "turndown";
 import { gfm } from "turndown-plugin-gfm";
 import PreviewSurface from "../components/PreviewSurface";
+import ToolModeSwitch from "../components/ToolModeSwitch";
 import { copyWithFallback } from "../utils/copy";
 import { renderMarkdownToHtml } from "../utils/markdown-renderer";
+import { flashText } from "../utils/ui-feedback";
 
 type Wx2mdApiSuccess = {
   ok: true;
@@ -205,18 +206,13 @@ export default function Wx2mdClient() {
       return;
     }
 
-    setCopyText("已复制");
-    setTimeout(() => setCopyText("复制 Markdown"), 1200);
+    flashText(setCopyText, "已复制", "复制 Markdown");
   }
 
   return (
     <main className="container">
       <h1>富文本与Markdown在线双向转换工具</h1>
-      <div className="mode-switch">
-        <Link className="mode-btn" href="/rt2md">富文本 -&gt; Markdown</Link>
-        <Link className="mode-btn" href="/md2rt">Markdown -&gt; 富文本</Link>
-        <Link className="mode-btn active" href="/wx2md">微信文章 -&gt; Markdown</Link>
-      </div>
+      <ToolModeSwitch active="wx2md" />
 
       <section className="panel">
         <header className="panel-header">

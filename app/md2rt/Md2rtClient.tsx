@@ -23,6 +23,15 @@ const INITIAL_MARKDOWN = `# Markdown 转富文本示例
 | --- | --- |
 | code | 行内代码如 \`test(123)\` |
 | table | 表格会保留渲染 |
+
+## 代码块示例
+\`\`\`ts
+function greet(name: string): string {
+  return \`hello, \${name}\`;
+}
+
+console.log(greet("Text2MD"));
+\`\`\`
 `;
 
 export default function Md2rtClient() {

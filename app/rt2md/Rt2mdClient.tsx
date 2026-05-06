@@ -139,32 +139,73 @@ const HIGHLIGHT_AUTO_LANGUAGES = codeLanguageOptions
   .map((item) => item.value)
   .filter((language) => language !== "plain");
 const initialRichTextHtml = `
-  <h1>富文本转 Markdown 示例文档</h1>
-  <h2>1. 基础排版</h2>
-  <p>这是一段普通正文，包含 <strong>加粗</strong>、<em>斜体</em>、<u>下划线</u>、<s>删除线</s> 和 <a href="https://commonmark.org/">链接</a>。</p>
-  <h3>1.1 无序列表</h3>
-  <ul>
-    <li>保留段落、列表、引用和链接结构</li>
-    <li>自动识别代码块语言并输出 fenced code block</li>
-    <li>在右侧实时生成 Markdown 源码</li>
+  <h1>Markdown 转富文本示例</h1>
+  <p>这是一个语雀风格的双栏编辑区，左侧写 Markdown，右侧自动转为富文本。这个示例覆盖常用排版、表格、任务列表和多语言代码块，方便初始化后直接试复制效果。</p>
+  <h2>发布清单</h2>
+  <ul data-checked="true">
+    <li>完成正文结构</li>
+    <li>添加表格和引用</li>
   </ul>
-  <h3>1.2 有序列表</h3>
+  <ul data-checked="false">
+    <li>补充配图与发布渠道</li>
+    <li>让同事复核技术细节</li>
+  </ul>
+  <blockquote>提示：右侧是可编辑富文本区域，复制 HTML 后可粘贴到支持富文本的编辑器中继续处理。</blockquote>
+  <h2>内容结构</h2>
   <ol>
-    <li>粘贴富文本内容</li>
-    <li>检查代码块语言和主题</li>
-    <li>复制 Markdown 结果</li>
+    <li>开头用 <strong>加粗文案</strong> 点明结论</li>
+    <li>中间用表格对比关键数据</li>
+    <li>结尾放行动项和代码片段</li>
   </ol>
-  <h4>1.2.1 引用</h4>
-  <blockquote>保持内容结构清晰，转换结果才更容易继续编辑。</blockquote>
-  <h5>1.2.1.1 代码块示例</h5>
-  <pre class="ql-syntax" spellcheck="false" data-code-language="javascript" data-language="javascript">const latency = await getNetworkLatency();
-console.log(\`network latency: \${latency}ms\`);</pre>
-  <h6>1.2.1.1.1 配置片段</h6>
-  <pre class="ql-syntax" spellcheck="false" data-code-language="json" data-language="json">{
-  "mode": "rt2md",
-  "syntaxHighlight": true,
-  "headingDepth": 6
+  <p>你也可以混合行内代码，比如 <code>calculateReadingTime(article)</code>，或放一个链接：<a href="https://example.com">Text2MD</a>。</p>
+  <table>
+    <tbody>
+      <tr>
+        <td>字段</td>
+        <td>说明</td>
+      </tr>
+      <tr>
+        <td>标题</td>
+        <td>支持 H1 - H6</td>
+      </tr>
+      <tr>
+        <td>列表</td>
+        <td>支持有序、无序和任务列表</td>
+      </tr>
+      <tr>
+        <td>表格</td>
+        <td>表格会保留表头、边框和隔行底色</td>
+      </tr>
+      <tr>
+        <td>code</td>
+        <td>行内代码如 <code>test(123)</code>，代码块支持语法高亮</td>
+      </tr>
+    </tbody>
+  </table>
+  <h2>JavaScript 示例</h2>
+  <pre class="ql-syntax" spellcheck="false" data-code-language="javascript" data-language="javascript">const tasks = ["parse markdown", "sanitize html", "highlight code"];
+
+for (const task of tasks) {
+  console.log(\`done: \${task}\`);
 }</pre>
+  <h2>TypeScript 示例</h2>
+  <pre class="ql-syntax" spellcheck="false" data-code-language="typescript" data-language="typescript">type ArticleMeta = {
+  title: string;
+  tags: string[];
+  publishedAt?: string;
+};
+
+function getSummary(meta: ArticleMeta): string {
+  return \`\${meta.title} · \${meta.tags.join(" / ")}\`;
+}</pre>
+  <h2>JSON 配置</h2>
+  <pre class="ql-syntax" spellcheck="false" data-code-language="json" data-language="json">{
+  "output": "rich-text",
+  "syntaxHighlight": true,
+  "theme": "github-dark"
+}</pre>
+  <hr>
+  <p>最后可以用分割线收束内容，并补一句结论：Markdown 负责结构，富文本负责交付。</p>
 `;
 
 function normalizeCodeLanguage(language: string): string {
@@ -197,6 +238,34 @@ function getFenceByCode(codeText: string): string {
   const matches = codeText.match(/`+/g) || [];
   const maxTickLength = matches.reduce((max, item) => Math.max(max, item.length), 0);
   return "`".repeat(Math.max(3, maxTickLength + 1));
+}
+
+function escapeMarkdownTableCell(value: string): string {
+  return value.replace(/\|/g, "\\|").replace(/\s+/g, " ").trim();
+}
+
+function tableToMarkdown(table: HTMLElement): string {
+  const rows = Array.from(table.querySelectorAll("tr"))
+    .map((row) =>
+      Array.from(row.querySelectorAll("th, td")).map((cell) =>
+        escapeMarkdownTableCell(cell.textContent || "")
+      )
+    )
+    .filter((cells) => cells.some(Boolean));
+
+  if (rows.length === 0) return "";
+
+  const columnCount = Math.max(...rows.map((cells) => cells.length));
+  const normalizedRows = rows.map((cells) => {
+    const nextCells = [...cells];
+    while (nextCells.length < columnCount) nextCells.push("");
+    return nextCells;
+  });
+  const [header, ...bodyRows] = normalizedRows;
+  const divider = Array.from({ length: columnCount }, () => "---");
+  const markdownRows = [header, divider, ...bodyRows].map((cells) => `| ${cells.join(" | ")} |`);
+
+  return `\n\n${markdownRows.join("\n")}\n\n`;
 }
 
 function getCodeLanguageFromNode(node: Element): string {
@@ -306,6 +375,14 @@ export default function Rt2mdClient() {
       codeBlockStyle: "fenced",
     });
     service.use(gfm as never);
+    service.addRule("quillTable", {
+      filter(node: Node) {
+        return node.nodeName === "TABLE";
+      },
+      replacement(_content: string, node: Node) {
+        return tableToMarkdown(node as HTMLElement);
+      },
+    });
     service.addRule("codeBlockWithLanguage", {
       filter(node: Node) {
         const elementNode = node as Element;

@@ -137,6 +137,30 @@
     "Liberation Mono", "Courier New", monospace;
 }
 
+#editor .ql-editor table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  table-layout: auto;
+}
+
+#editor .ql-editor th,
+#editor .ql-editor td {
+  border: 1px solid #d8dde8;
+  padding: 7px 9px;
+  vertical-align: top;
+}
+
+#editor .ql-editor th {
+  background: #f6f7fa;
+  color: #374151;
+  font-weight: 600;
+}
+
+#editor .ql-editor tbody tr:nth-child(even) {
+  background: #fafbfc;
+}
+
 #editor .ql-editor pre.ql-syntax .hljs-doctag,
 #editor .ql-editor pre.ql-syntax .hljs-keyword,
 #editor .ql-editor pre.ql-syntax .hljs-meta .hljs-keyword,
@@ -365,7 +389,9 @@
   background: #fff;
   color: #111827;
   overflow: auto;
-  white-space: pre;
+  overflow-x: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .rt2md-preview {

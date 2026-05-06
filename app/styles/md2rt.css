@@ -65,7 +65,9 @@
   background: #fcfcfd;
   color: #111827;
   overflow: auto;
-  white-space: pre;
+  overflow-x: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 #richOutputEditor {

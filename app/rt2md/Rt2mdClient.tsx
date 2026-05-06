@@ -4,6 +4,29 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import TurndownService from "turndown";
 import { gfm } from "turndown-plugin-gfm";
+import hljs from "highlight.js/lib/core";
+import bash from "highlight.js/lib/languages/bash";
+import c from "highlight.js/lib/languages/c";
+import cpp from "highlight.js/lib/languages/cpp";
+import csharp from "highlight.js/lib/languages/csharp";
+import css from "highlight.js/lib/languages/css";
+import go from "highlight.js/lib/languages/go";
+import html from "highlight.js/lib/languages/xml";
+import java from "highlight.js/lib/languages/java";
+import javascript from "highlight.js/lib/languages/javascript";
+import json from "highlight.js/lib/languages/json";
+import kotlin from "highlight.js/lib/languages/kotlin";
+import markdown from "highlight.js/lib/languages/markdown";
+import php from "highlight.js/lib/languages/php";
+import python from "highlight.js/lib/languages/python";
+import ruby from "highlight.js/lib/languages/ruby";
+import rust from "highlight.js/lib/languages/rust";
+import scala from "highlight.js/lib/languages/scala";
+import sql from "highlight.js/lib/languages/sql";
+import swift from "highlight.js/lib/languages/swift";
+import typescript from "highlight.js/lib/languages/typescript";
+import xml from "highlight.js/lib/languages/xml";
+import yaml from "highlight.js/lib/languages/yaml";
 
 type CodeLanguageOption = {
   value: string;
@@ -12,6 +35,11 @@ type CodeLanguageOption = {
 
 type CodeThemeOption = {
   value: string;
+  label: string;
+};
+
+type QuillLanguageOption = {
+  key: string;
   label: string;
 };
 
@@ -29,6 +57,10 @@ type QuillLine = {
   domNode: Node;
 };
 
+type QuillSyntaxModule = {
+  highlight(blot?: unknown, force?: boolean): void;
+};
+
 type QuillRoot = HTMLElement & {
   innerHTML: string;
   querySelectorAll<E extends Element = Element>(selectors: string): NodeListOf<E>;
@@ -39,6 +71,7 @@ type QuillInstance = {
   on(eventName: "text-change" | "selection-change", handler: () => void): void;
   getSelection(): QuillRange | null;
   getLine(index: number): [QuillLine | null, number];
+  getModule(name: "syntax"): QuillSyntaxModule;
   getText(): string;
   setText(text: string): void;
   clipboard: {
@@ -52,6 +85,10 @@ type QuillConstructor = new (
     theme: "snow";
     placeholder: string;
     modules: {
+      syntax: {
+        hljs: typeof hljs;
+        languages: QuillLanguageOption[];
+      };
       toolbar: Array<unknown>;
     };
   }
@@ -89,7 +126,40 @@ const codeThemeOptions: CodeThemeOption[] = [
   { value: "github-light", label: "GitHub Light" },
   { value: "dracula", label: "Dracula" },
 ];
+const quillLanguageOptions: QuillLanguageOption[] = codeLanguageOptions.map(({ value, label }) => ({
+  key: value,
+  label,
+}));
 const CODE_BLOCK_SELECTOR = "pre.ql-syntax, .ql-code-block-container";
+const HIGHLIGHT_AUTO_LANGUAGES = codeLanguageOptions
+  .map((item) => item.value)
+  .filter((language) => language !== "plain");
+
+function normalizeCodeLanguage(language: string): string {
+  return codeLanguageOptions.some((item) => item.value === language) ? language : "plain";
+}
+hljs.registerLanguage("javascript", javascript);
+hljs.registerLanguage("typescript", typescript);
+hljs.registerLanguage("python", python);
+hljs.registerLanguage("java", java);
+hljs.registerLanguage("c", c);
+hljs.registerLanguage("cpp", cpp);
+hljs.registerLanguage("csharp", csharp);
+hljs.registerLanguage("go", go);
+hljs.registerLanguage("rust", rust);
+hljs.registerLanguage("php", php);
+hljs.registerLanguage("ruby", ruby);
+hljs.registerLanguage("swift", swift);
+hljs.registerLanguage("kotlin", kotlin);
+hljs.registerLanguage("scala", scala);
+hljs.registerLanguage("sql", sql);
+hljs.registerLanguage("bash", bash);
+hljs.registerLanguage("json", json);
+hljs.registerLanguage("yaml", yaml);
+hljs.registerLanguage("xml", xml);
+hljs.registerLanguage("html", html);
+hljs.registerLanguage("css", css);
+hljs.registerLanguage("markdown", markdown);
 
 function getFenceByCode(codeText: string): string {
   const matches = codeText.match(/`+/g) || [];
@@ -99,10 +169,18 @@ function getFenceByCode(codeText: string): string {
 
 function getCodeLanguageFromNode(node: Element): string {
   const fromData = (node.getAttribute("data-code-language") || "").trim().toLowerCase();
-  if (fromData) return fromData;
+  if (fromData) return normalizeCodeLanguage(fromData);
+  const fromSyntax = (node.getAttribute("data-language") || "").trim().toLowerCase();
+  if (fromSyntax) return normalizeCodeLanguage(fromSyntax);
+  const firstLineLanguage = (
+    node.querySelector<HTMLElement>(".ql-code-block")?.getAttribute("data-language") || ""
+  )
+    .trim()
+    .toLowerCase();
+  if (firstLineLanguage) return normalizeCodeLanguage(firstLineLanguage);
   const classText = (node.getAttribute("class") || "").toLowerCase();
   const classMatch = classText.match(/language-([\w-]+)/);
-  return classMatch ? classMatch[1] : "plain";
+  return classMatch ? normalizeCodeLanguage(classMatch[1]) : "plain";
 }
 
 function getCodeThemeFromNode(node: Element): string {
@@ -114,6 +192,47 @@ function getCodeThemeFromNode(node: Element): string {
 function getCodeThemeLabel(themeValue: string): string {
   const hit = codeThemeOptions.find((item) => item.value === themeValue);
   return hit ? hit.label : "Yuque Light Pro";
+}
+
+function getCodeTextFromBlock(block: HTMLElement): string {
+  if (block.classList.contains("ql-code-block-container")) {
+    return Array.from(block.querySelectorAll<HTMLElement>(".ql-code-block"))
+      .map((line) => line.textContent || "")
+      .join("\n")
+      .replace(/\n$/, "");
+  }
+
+  const clone = block.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll(".ql-ui").forEach((node) => node.remove());
+  return (clone.innerText || clone.textContent || "").replace(/\n$/, "");
+}
+
+function detectCodeLanguage(codeText: string): string {
+  if (!codeText.trim()) return "plain";
+
+  const result = hljs.highlightAuto(codeText, HIGHLIGHT_AUTO_LANGUAGES);
+  return normalizeCodeLanguage(result.language || "plain");
+}
+
+function applySyntaxLanguage(block: HTMLElement, language: string): void {
+  const syntaxLanguage = normalizeCodeLanguage(language);
+  block.setAttribute("data-code-language", syntaxLanguage);
+  block.setAttribute("data-language", syntaxLanguage);
+
+  if (block.classList.contains("ql-code-block-container")) {
+    block.querySelectorAll<HTMLElement>(".ql-code-block").forEach((line) => {
+      line.setAttribute("data-code-language", syntaxLanguage);
+      line.setAttribute("data-language", syntaxLanguage);
+    });
+  }
+}
+
+function forceSyntaxHighlight(quill: QuillInstance | null): void {
+  try {
+    quill?.getModule("syntax").highlight(undefined, true);
+  } catch {
+    // Ignore highlight runtime errors to avoid breaking editor interaction.
+  }
 }
 
 export default function Rt2mdClient() {
@@ -159,8 +278,7 @@ export default function Rt2mdClient() {
       },
       replacement(_content: string, node: Node) {
         const elementNode = node as HTMLElement;
-        const rawText = elementNode.innerText || elementNode.textContent || "";
-        const codeText = rawText.replace(/\n$/, "");
+        const codeText = getCodeTextFromBlock(elementNode);
         const language = getCodeLanguageFromNode(elementNode);
         const fence = getFenceByCode(codeText);
         const langToken = language === "plain" ? "" : language;
@@ -174,9 +292,23 @@ export default function Rt2mdClient() {
     const quill = quillRef.current;
     if (!quill) return;
     quill.root.querySelectorAll<HTMLElement>(CODE_BLOCK_SELECTOR).forEach((block) => {
-      if (!block.getAttribute("data-code-language")) {
-        block.setAttribute("data-code-language", "plain");
-      }
+      const currentLanguage = getCodeLanguageFromNode(block);
+      const hasExplicitLanguage =
+        Boolean(block.getAttribute("data-code-language")) ||
+        Boolean(
+          block.getAttribute("data-language") &&
+            block.getAttribute("data-language") !== "plain"
+        ) ||
+        Boolean(
+          block.querySelector<HTMLElement>(".ql-code-block")?.getAttribute("data-language") &&
+            block.querySelector<HTMLElement>(".ql-code-block")?.getAttribute("data-language") !==
+              "plain"
+        );
+      const language =
+        hasExplicitLanguage || currentLanguage !== "plain"
+          ? currentLanguage
+          : detectCodeLanguage(getCodeTextFromBlock(block));
+      applySyntaxLanguage(block, language);
       if (!block.getAttribute("data-code-theme")) {
         block.setAttribute("data-code-theme", "yuque-light-pro");
       }
@@ -236,6 +368,10 @@ export default function Rt2mdClient() {
         theme: "snow",
         placeholder: "请粘贴或编辑富文本内容...",
         modules: {
+          syntax: {
+            hljs,
+            languages: quillLanguageOptions,
+          },
           toolbar: [
             [{ header: [1, 2, 3, false] }],
             ["bold", "italic", "underline", "strike"],
@@ -251,6 +387,7 @@ export default function Rt2mdClient() {
 
       quill.on("text-change", () => {
         toMarkdown();
+        window.setTimeout(() => forceSyntaxHighlight(quillRef.current), 0);
         const codeBlock = getActiveCodeBlock();
         if (codeBlock) {
           setHasActiveCodeBlock(true);
@@ -285,10 +422,11 @@ export default function Rt2mdClient() {
           <li>DNS 解析：50~200ms（已缓存更快）</li>
           <li>TCP/TLS 建连：100~400ms（跨地域更慢）</li>
         </ul>
-        <pre class="ql-syntax" spellcheck="false" data-code-language="javascript">const latency = await getNetworkLatency();</pre>
+        <pre class="ql-syntax" spellcheck="false" data-code-language="javascript" data-language="javascript">const latency = await getNetworkLatency();</pre>
       `);
 
       ensureCodeLanguageMetadata();
+      forceSyntaxHighlight(quill);
       toMarkdown();
       updateFloatingToolbarPosition();
 
@@ -321,6 +459,8 @@ export default function Rt2mdClient() {
       if (!block) return;
       if (nextLanguage) {
         block.setAttribute("data-code-language", nextLanguage);
+        applySyntaxLanguage(block, nextLanguage);
+        forceSyntaxHighlight(quillRef.current);
       }
       if (nextTheme) {
         block.setAttribute("data-code-theme", nextTheme);

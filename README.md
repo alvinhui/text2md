@@ -44,26 +44,25 @@ npm run start
 - `http://localhost:8080/md2rt`
 - `http://localhost:8080/wx2md`
 
-## 随机端口启动（推荐）
+## 随机端口启动
+
+```bash
+npm run start:random
+```
+
+该脚本会自动选择空闲端口并以 Next.js 开发模式启动，同时打印当前访问地址（例如 `http://127.0.0.1:64421`）
+
+## 本地域名启动（`md2text.local`）
 
 ```bash
 npm run start:local
 ```
 
-该脚本会自动选择空闲端口并以 Next.js 开发模式启动，同时打印：
+`start:local` 会在随机端口启动服务后，自动尝试配置 `md2text.local` 到当前端口的本机映射。
 
-- 当前访问地址（例如 `http://127.0.0.1:64421`）
-- 将 `md2text.local` 映射为无端口访问的命令提示
+如果映射过程中需要管理员权限，终端会提示输入本机管理员密码（`Password`），输入后继续即可。
 
-## 配置 `md2text.local`（无端口访问）
-
-当你使用 `start:local` 启动后，执行终端输出的命令即可，例如：
-
-```bash
-sudo bash scripts/map-md2text-local.sh 64421
-```
-
-完成后可直接通过下面地址访问：
+成功后可通过以下地址访问：
 
 - `http://md2text.local`
 
@@ -72,18 +71,19 @@ sudo bash scripts/map-md2text-local.sh 64421
 ```text
 .
 ├── app/
-│   ├── api/wx2md/route.js     # 微信抓取接口
+│   ├── api/wx2md/route.ts     # 微信抓取接口
 │   ├── rt2md/                 # 富文本 -> Markdown
 │   ├── md2rt/                 # Markdown -> 富文本
 │   ├── wx2md/                 # 微信文章 -> Markdown
-│   ├── layout.js
-│   └── page.js                # Landing
+│   ├── layout.tsx
+│   └── page.tsx               # Landing
 ├── lib/
-│   └── wx2md-service.js       # 远程抓取与代理回退
+│   └── wx2md-service.ts       # 远程抓取与代理回退
 ├── public/
 │   └── favicon.svg
 ├── app/styles/                # 页面样式
 ├── scripts/
+│   ├── start-random.sh
 │   ├── start-local.sh
 │   └── map-md2text-local.sh
 └── package.json

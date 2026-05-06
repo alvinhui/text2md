@@ -131,6 +131,10 @@
       border-bottom: 1px solid var(--border);
       background: #fff;
       padding: 7px 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
     #editor .ql-container.ql-snow { border: 0; }
@@ -141,6 +145,55 @@
       padding: 18px 22px;
       max-width: 860px;
       margin: 0 auto;
+    }
+
+    #editor .code-lang-wrap {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #6b7280;
+      font-size: 12px;
+    }
+
+    #editor .code-lang-label {
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    #editor .code-lang-select {
+      height: 26px;
+      border: 1px solid #d8dde8;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #374151;
+      background: #fff;
+      padding: 0 8px;
+      outline: none;
+      min-width: 118px;
+      cursor: pointer;
+    }
+
+    #editor .ql-editor pre.ql-syntax {
+      position: relative;
+      padding-top: 24px;
+    }
+
+    #editor .ql-editor pre.ql-syntax[data-code-language]:not([data-code-language="plain"])::before {
+      content: attr(data-code-language);
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      background: rgba(15, 23, 42, 0.08);
+      color: #cbd5e1;
+      font-size: 11px;
+      line-height: 18px;
+      height: 18px;
+      padding: 0 7px;
+      text-transform: lowercase;
+      pointer-events: none;
     }
 
     #markdownOutput {
@@ -180,6 +233,7 @@
     <div class="mode-switch">
       <a class="mode-btn active" href="./rt2md.html">富文本 -> Markdown</a>
       <a class="mode-btn" href="./md2rt.html">Markdown -> 富文本</a>
+      <a class="mode-btn" href="./wx2md.html">微信文章 -> Markdown</a>
     </div>
 
     <section class="panels">
@@ -203,13 +257,39 @@
         </div>
       </article>
     </section>
-    <p class="tip">当前为富文本转 Markdown 页面，点击上方切换可跳到 Markdown 转富文本页面。</p>
+    <p class="tip">当前为富文本转 Markdown 页面，点击上方切换可跳到其他工具页面。</p>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/turndown@7.2.0/dist/turndown.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/turndown-plugin-gfm@1.0.2/dist/turndown-plugin-gfm.js"></script>
   <script>
+    const codeLanguageOptions = [
+      { value: "plain", label: "Plain Text" },
+      { value: "javascript", label: "JavaScript" },
+      { value: "typescript", label: "TypeScript" },
+      { value: "python", label: "Python" },
+      { value: "java", label: "Java" },
+      { value: "c", label: "C" },
+      { value: "cpp", label: "C++" },
+      { value: "csharp", label: "C#" },
+      { value: "go", label: "Go" },
+      { value: "rust", label: "Rust" },
+      { value: "php", label: "PHP" },
+      { value: "ruby", label: "Ruby" },
+      { value: "swift", label: "Swift" },
+      { value: "kotlin", label: "Kotlin" },
+      { value: "scala", label: "Scala" },
+      { value: "sql", label: "SQL" },
+      { value: "bash", label: "Bash" },
+      { value: "json", label: "JSON" },
+      { value: "yaml", label: "YAML" },
+      { value: "xml", label: "XML" },
+      { value: "html", label: "HTML" },
+      { value: "css", label: "CSS" },
+      { value: "markdown", label: "Markdown" }
+    ];
+
     const quill = new Quill("#editor", {
       theme: "snow",
       placeholder: "请粘贴或编辑富文本内容...",
@@ -229,6 +309,25 @@
     const markdownOutput = document.querySelector("#markdownOutput");
     const copyRichBtn = document.querySelector("#copyRichBtn");
     const copyMarkdownBtn = document.querySelector("#copyMarkdownBtn");
+    const qlToolbar = quill.getModule("toolbar") && quill.getModule("toolbar").container;
+
+    const codeLangWrap = document.createElement("div");
+    codeLangWrap.className = "code-lang-wrap";
+    codeLangWrap.innerHTML = `
+      <span class="code-lang-label">代码语言</span>
+      <select id="codeLanguageSelect" class="code-lang-select"></select>
+    `;
+    if (qlToolbar) {
+      qlToolbar.appendChild(codeLangWrap);
+    }
+
+    const codeLanguageSelect = codeLangWrap.querySelector("#codeLanguageSelect");
+    codeLanguageOptions.forEach((item) => {
+      const opt = document.createElement("option");
+      opt.value = item.value;
+      opt.textContent = item.label;
+      codeLanguageSelect.appendChild(opt);
+    });
 
     const turndownService = new TurndownService({
       headingStyle: "atx",
@@ -237,8 +336,85 @@
       codeBlockStyle: "fenced"
     });
     turndownService.use(window.turndownPluginGfm.gfm);
+    turndownService.addRule("codeBlockWithLanguage", {
+      filter: function (node) {
+        const isPre = node.nodeName === "PRE";
+        const hasQuillSyntax = isPre && node.classList && node.classList.contains("ql-syntax");
+        const hasLanguageHint = isPre && (
+          node.hasAttribute("data-code-language")
+          || /language-[\w-]+/i.test(node.className || "")
+        );
+        return hasQuillSyntax || hasLanguageHint;
+      },
+      replacement: function (_content, node) {
+        const codeText = (node.textContent || "").replace(/\n$/, "");
+        const language = getCodeLanguageFromNode(node);
+        const fence = getFenceByCode(codeText);
+        const langToken = language === "plain" ? "" : language;
+        return `\n\n${fence}${langToken}\n${codeText}\n${fence}\n\n`;
+      }
+    });
+
+    function getFenceByCode(codeText) {
+      const matches = codeText.match(/`+/g) || [];
+      const maxTickLength = matches.reduce((max, item) => Math.max(max, item.length), 0);
+      return "`".repeat(Math.max(3, maxTickLength + 1));
+    }
+
+    function getCodeLanguageFromNode(node) {
+      const fromData = (node.getAttribute("data-code-language") || "").trim().toLowerCase();
+      if (fromData) return fromData;
+      const classText = (node.className || "").toLowerCase();
+      const classMatch = classText.match(/language-([\w-]+)/);
+      return classMatch ? classMatch[1] : "plain";
+    }
+
+    function getCodeBlockDomNodeAtRange(range) {
+      if (!range) return null;
+      const [line] = quill.getLine(range.index);
+      if (!line) return null;
+      const lineNode = line.domNode;
+      if (!lineNode || !(lineNode instanceof HTMLElement)) return null;
+      if (lineNode.tagName === "PRE") return lineNode;
+      return lineNode.closest("pre.ql-syntax");
+    }
+
+    function ensureCodeLanguageMetadata() {
+      quill.root.querySelectorAll("pre.ql-syntax").forEach((pre) => {
+        if (!pre.getAttribute("data-code-language")) {
+          pre.setAttribute("data-code-language", "plain");
+        }
+      });
+    }
+
+    function syncCodeLanguageSelectFromCursor() {
+      const range = quill.getSelection();
+      const codeBlock = getCodeBlockDomNodeAtRange(range);
+      if (!codeBlock) {
+        codeLanguageSelect.value = "plain";
+        return;
+      }
+      const current = getCodeLanguageFromNode(codeBlock);
+      if ([...codeLanguageSelect.options].some((opt) => opt.value === current)) {
+        codeLanguageSelect.value = current;
+      } else {
+        codeLanguageSelect.value = "plain";
+      }
+    }
+
+    function applySelectedLanguageToCurrentCodeBlock() {
+      const range = quill.getSelection(true);
+      if (!range) return;
+      const codeBlock = getCodeBlockDomNodeAtRange(range);
+      if (!codeBlock) {
+        return;
+      }
+      codeBlock.setAttribute("data-code-language", codeLanguageSelect.value || "plain");
+      toMarkdown();
+    }
 
     function toMarkdown() {
+      ensureCodeLanguageMetadata();
       const html = quill.root.innerHTML;
       markdownOutput.value = turndownService.turndown(html).trim();
     }
@@ -286,6 +462,15 @@
     }
 
     quill.on("text-change", toMarkdown);
+    quill.on("editor-change", function (eventName) {
+      if (eventName === "selection-change") {
+        syncCodeLanguageSelectFromCursor();
+      } else if (eventName === "text-change") {
+        ensureCodeLanguageMetadata();
+      }
+    });
+
+    codeLanguageSelect.addEventListener("change", applySelectedLanguageToCurrentCodeBlock);
 
     copyMarkdownBtn.addEventListener("click", function () {
       copyText(markdownOutput.value, copyMarkdownBtn);
@@ -305,7 +490,10 @@
         <li>DNS 解析：50~200ms（已缓存更快）</li>
         <li>TCP/TLS 建连：100~400ms（跨地域更慢）</li>
       </ul>
+      <pre class="ql-syntax" spellcheck="false" data-code-language="javascript">const latency = await getNetworkLatency();</pre>
     `);
+    ensureCodeLanguageMetadata();
+    syncCodeLanguageSelectFromCursor();
     toMarkdown();
   </script>
 </body>

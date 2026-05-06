@@ -1,12 +1,12 @@
 "use client";
 
 import createDOMPurify from "dompurify";
-import { marked } from "marked";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import TurndownService from "turndown";
 import { gfm } from "turndown-plugin-gfm";
 import PreviewSurface from "../components/PreviewSurface";
+import { renderMarkdownToHtml } from "../utils/markdown-renderer";
 
 type Wx2mdApiSuccess = {
   ok: true;
@@ -132,12 +132,10 @@ export default function Wx2mdClient() {
       return "<p class=\"empty\">Markdown 预览会显示在这里</p>";
     }
     if (typeof window === "undefined") {
-      const rendered = marked.parse(md);
-      return typeof rendered === "string" ? rendered : "";
+      return renderMarkdownToHtml(md);
     }
     const purifier = createDOMPurify(window);
-    const rendered = marked.parse(md);
-    const normalized = typeof rendered === "string" ? rendered : "";
+    const normalized = renderMarkdownToHtml(md);
     return purifier.sanitize(normalized, { USE_PROFILES: { html: true } });
   }, [markdown]);
 

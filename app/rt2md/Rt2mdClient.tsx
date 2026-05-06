@@ -1,12 +1,12 @@
 "use client";
 
 import createDOMPurify from "dompurify";
-import { marked } from "marked";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import TurndownService from "turndown";
 import { gfm } from "turndown-plugin-gfm";
 import PreviewSurface from "../components/PreviewSurface";
+import { renderMarkdownToHtml } from "../utils/markdown-renderer";
 import hljs from "highlight.js/lib/core";
 import bash from "highlight.js/lib/languages/bash";
 import c from "highlight.js/lib/languages/c";
@@ -361,8 +361,7 @@ export default function Rt2mdClient() {
   const previewHtml = useMemo<string>(() => {
     const md = markdown.trim();
     if (!md) return "<p class=\"empty\">Markdown 预览会显示在这里</p>";
-    const rendered = marked.parse(md);
-    const normalized = typeof rendered === "string" ? rendered : "";
+    const normalized = renderMarkdownToHtml(md);
     if (typeof window === "undefined") return normalized;
     const purifier = createDOMPurify(window);
     return purifier.sanitize(normalized, { USE_PROFILES: { html: true } });

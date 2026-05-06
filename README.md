@@ -31,6 +31,8 @@ npm run start:local
 - 当前访问地址（例如 `http://127.0.0.1:64421`）
 - 将 `md2text.local` 映射为无端口访问的命令提示
 
+> 说明：项目使用 `server.js`（Node.js）启动本地静态站点，并提供 `/api/wx2md` 同源接口给微信文章转换页面调用，避免浏览器直接请求第三方代理时的证书/跨域问题。
+
 ## 配置 `md2text.local`（无端口访问）
 
 当你使用 `start:local` 启动后，执行终端输出的命令即可，例如：
@@ -50,6 +52,7 @@ sudo bash scripts/map-md2text-local.sh 64421
 ├── index.html        # Landing 首页
 ├── rt2md.html        # 富文本 -> Markdown
 ├── md2rt.html        # Markdown -> 富文本
+├── server.js         # 本地静态服务 + /api/wx2md 接口（Node.js）
 ├── scripts/
 │   ├── start-local.sh         # 随机端口启动脚本
 │   └── map-md2text-local.sh   # md2text.local 映射脚本（需 sudo）

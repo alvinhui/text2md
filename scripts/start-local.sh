@@ -16,4 +16,4 @@ echo "如需无端口访问，请执行:"
 echo "  sudo bash scripts/map-md2text-local.sh ${PORT}"
 echo ""
 
-exec python3 -m http.server "${PORT}"
+exec node server.js "${PORT}"

@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>微信文章 -> Markdown</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <style>
+    :root {
+      --bg: #f2f4f8;
+      --panel-bg: #ffffff;
+      --text: #262626;
+      --subtext: #6b7280;
+      --border: #e6e8eb;
+      --primary: #2f6bff;
+      --primary-hover: #2458d9;
+      --radius: 10px;
+      --shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    .container {
+      width: min(1100px, calc(100vw - 28px));
+      margin: 14px auto 24px;
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      text-align: center;
+      font-size: clamp(20px, 2.1vw, 30px);
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .mode-switch {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin: 0 0 12px;
+      flex-wrap: wrap;
+    }
+
+    .mode-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      border: 1px solid #d8dde8;
+      background: #f6f7fa;
+      color: #4b5563;
+      border-radius: 999px;
+      height: 34px;
+      padding: 0 16px;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .mode-btn:hover { background: #eceff5; }
+    .mode-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(47, 107, 255, 0.25);
+    }
+
+    .panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      min-height: 44px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #fafbfc;
+      flex-wrap: wrap;
+    }
+
+    .panel-title {
+      font-size: 13px;
+      color: var(--subtext);
+      font-weight: 500;
+    }
+
+    .panel-body {
+      padding: 14px 12px 12px;
+    }
+
+    .url-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    #wechatUrl {
+      flex: 1;
+      min-width: 0;
+      height: 40px;
+      border: 1px solid #d8dde8;
+      border-radius: 8px;
+      padding: 0 12px;
+      font-size: 14px;
+      outline: none;
+      background: #fff;
+    }
+
+    #wechatUrl:focus {
+      border-color: #9bb6ff;
+      box-shadow: 0 0 0 3px rgba(47, 107, 255, 0.12);
+    }
+
+    .btn {
+      border: 1px solid transparent;
+      border-radius: 7px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 12px;
+      line-height: 36px;
+      height: 36px;
+      padding: 0 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn:hover { background: var(--primary-hover); }
+    .btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .btn-light {
+      background: #6b7280;
+    }
+    .btn-light:hover {
+      background: #4b5563;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .view-switch {
+      display: inline-flex;
+      gap: 6px;
+      margin-left: auto;
+    }
+
+    .view-btn {
+      border: 1px solid #d8dde8;
+      background: #f7f8fb;
+      color: #4b5563;
+      border-radius: 6px;
+      height: 30px;
+      padding: 0 10px;
+      font-size: 12px;
+      line-height: 28px;
+      cursor: pointer;
+    }
+
+    .view-btn:hover {
+      background: #eef1f7;
+    }
+
+    .view-btn.active {
+      border-color: var(--primary);
+      background: #eaf0ff;
+      color: #2f57d1;
+    }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .result-grid.single-editor {
+      grid-template-columns: 1fr;
+    }
+
+    .result-grid.single-preview {
+      grid-template-columns: 1fr;
+    }
+
+    .result-grid.single-editor #markdownPreview {
+      display: none;
+    }
+
+    .result-grid.single-preview #markdownOutput {
+      display: none;
+    }
+
+    #markdownOutput {
+      margin: 0;
+      width: 100%;
+      height: min(66vh, 680px);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      outline: none;
+      resize: vertical;
+      padding: 16px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", "Courier New", monospace;
+      font-size: 14px;
+      line-height: 1.8;
+      background: #fcfcfd;
+      color: #111827;
+      overflow: auto;
+      white-space: pre;
+    }
+
+    #markdownPreview {
+      height: min(66vh, 680px);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      padding: 16px;
+      overflow: auto;
+      font-size: 14px;
+      line-height: 1.8;
+      color: #1f2937;
+    }
+
+    #markdownPreview h1,
+    #markdownPreview h2,
+    #markdownPreview h3,
+    #markdownPreview h4 {
+      margin: 0 0 10px;
+      line-height: 1.4;
+    }
+
+    #markdownPreview p,
+    #markdownPreview ul,
+    #markdownPreview ol,
+    #markdownPreview blockquote,
+    #markdownPreview pre,
+    #markdownPreview table {
+      margin: 0 0 10px;
+    }
+
+    #markdownPreview code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      padding: 1px 4px;
+    }
+
+    #markdownPreview pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 6px;
+      padding: 10px 12px;
+      overflow: auto;
+    }
+
+    #markdownPreview pre code {
+      background: transparent;
+      border: 0;
+      color: inherit;
+      padding: 0;
+    }
+
+    #markdownPreview table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    #markdownPreview th,
+    #markdownPreview td {
+      border: 1px solid #e5e7eb;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    #markdownPreview blockquote {
+      border-left: 3px solid #d4d8df;
+      padding: 6px 10px;
+      background: #fafbfc;
+      color: #4b5563;
+    }
+
+    #markdownPreview .empty {
+      color: #9ca3af;
+    }
+
+    #status {
+      min-height: 20px;
+      margin: 0 0 10px;
+      color: #596375;
+      font-size: 12px;
+    }
+
+    #status.error {
+      color: #c62828;
+    }
+
+    .tip {
+      margin-top: 8px;
+      text-align: center;
+      color: #98a1b2;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 760px) {
+      .url-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .btn { width: 100%; }
+      .result-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>富文本与Markdown在线双向转换工具</h1>
+    <div class="mode-switch">
+      <a class="mode-btn" href="./rt2md.html">富文本 -> Markdown</a>
+      <a class="mode-btn" href="./md2rt.html">Markdown -> 富文本</a>
+      <a class="mode-btn active" href="./wx2md.html">微信文章 -> Markdown</a>
+    </div>
+
+    <section class="panel">
+      <header class="panel-header">
+        <div class="panel-title">输入公众号文章地址并转换为 Markdown</div>
+      </header>
+
+      <div class="panel-body">
+        <div class="url-row">
+          <input id="wechatUrl" type="url" placeholder="粘贴微信文章链接，例如 https://mp.weixin.qq.com/s/xxxx" />
+          <button id="convertBtn" class="btn" type="button">开始转换</button>
+        </div>
+
+        <p id="status"></p>
+
+        <div class="actions">
+          <button id="copyMarkdownBtn" class="btn" type="button">复制 Markdown</button>
+          <button id="downloadMarkdownBtn" class="btn btn-light" type="button">下载 .md 文件</button>
+          <button id="clearBtn" class="btn btn-light" type="button">清空</button>
+          <div class="view-switch">
+            <button id="viewDualBtn" class="view-btn active" type="button">双栏</button>
+            <button id="viewEditorBtn" class="view-btn" type="button">仅编辑器</button>
+            <button id="viewPreviewBtn" class="view-btn" type="button">仅预览</button>
+          </div>
+        </div>
+
+        <div id="resultGrid" class="result-grid">
+          <textarea id="markdownOutput" spellcheck="false" placeholder="转换结果会显示在这里"></textarea>
+          <div id="markdownPreview"><p class="empty">Markdown 预览会显示在这里</p></div>
+        </div>
+      </div>
+    </section>
+
+    <p class="tip">
+      当前页面会自动尝试多个公开代理抓取正文并转换为 Markdown。<br />
+      若某个代理证书或网络异常，会自动切换到下一个代理。
+    </p>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/turndown@7.2.0/dist/turndown.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/turndown-plugin-gfm@1.0.2/dist/turndown-plugin-gfm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/lib/marked.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+  <script>
+    const REQUEST_TIMEOUT_MS = 25000;
+
+    const wechatUrlInput = document.querySelector("#wechatUrl");
+    const convertBtn = document.querySelector("#convertBtn");
+    const copyMarkdownBtn = document.querySelector("#copyMarkdownBtn");
+    const downloadMarkdownBtn = document.querySelector("#downloadMarkdownBtn");
+    const clearBtn = document.querySelector("#clearBtn");
+    const viewDualBtn = document.querySelector("#viewDualBtn");
+    const viewEditorBtn = document.querySelector("#viewEditorBtn");
+    const viewPreviewBtn = document.querySelector("#viewPreviewBtn");
+    const resultGrid = document.querySelector("#resultGrid");
+    const markdownOutput = document.querySelector("#markdownOutput");
+    const markdownPreview = document.querySelector("#markdownPreview");
+    const statusEl = document.querySelector("#status");
+    const turndownService = new TurndownService({
+      headingStyle: "atx",
+      hr: "---",
+      bulletListMarker: "-",
+      codeBlockStyle: "fenced"
+    });
+    turndownService.use(window.turndownPluginGfm.gfm);
+
+    function setStatus(text, isError) {
+      statusEl.textContent = text || "";
+      statusEl.classList.toggle("error", Boolean(isError));
+    }
+
+    function isWechatArticleUrl(url) {
+      try {
+        const parsed = new URL(url);
+        return parsed.hostname === "mp.weixin.qq.com";
+      } catch (error) {
+        return false;
+      }
+    }
+
+    async function fetchWithTimeout(url, timeoutMs) {
+      const controller = new AbortController();
+      const timer = setTimeout(function () {
+        controller.abort();
+      }, timeoutMs);
+
+      try {
+        return await fetch(url, {
+          method: "GET",
+          signal: controller.signal
+        });
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    function toMarkdownFromWechatHtml(htmlText) {
+      const doc = new DOMParser().parseFromString(htmlText, "text/html");
+      const title =
+        (doc.querySelector("#activity-name") && doc.querySelector("#activity-name").textContent.trim()) ||
+        (doc.querySelector("meta[property='og:title']") && doc.querySelector("meta[property='og:title']").getAttribute("content")) ||
+        (doc.title || "").trim();
+
+      const contentNode = doc.querySelector("#js_content") || doc.querySelector(".rich_media_content");
+      if (!contentNode) {
+        throw new Error("未找到文章正文节点（#js_content）");
+      }
+
+      const cloned = contentNode.cloneNode(true);
+      cloned.querySelectorAll("script, style, noscript").forEach(function (node) {
+        node.remove();
+      });
+      cloned.querySelectorAll("img").forEach(function (img) {
+        const src = img.getAttribute("data-src") || img.getAttribute("data-original-src") || img.getAttribute("src");
+        if (src) {
+          img.setAttribute("src", src);
+        }
+      });
+
+      let markdown = turndownService.turndown(cloned.innerHTML).trim();
+      if (!markdown) {
+        throw new Error("正文内容为空");
+      }
+      if (title) {
+        markdown = "# " + title + "\n\n" + markdown;
+      }
+      return markdown;
+    }
+
+    function toMarkdownFromProxyResponse(responseText) {
+      const text = (responseText || "").trim();
+      if (!text) {
+        throw new Error("未获取到有效内容");
+      }
+
+      const looksLikeHtml = /<!doctype html|<html[\s>]|<body[\s>]|id=["']js_content["']/i.test(text);
+      if (looksLikeHtml) {
+        return toMarkdownFromWechatHtml(text);
+      }
+      return text;
+    }
+
+    function renderMarkdownPreview(mdText) {
+      const markdown = (mdText || "").trim();
+      if (!markdown) {
+        markdownPreview.innerHTML = "<p class=\"empty\">Markdown 预览会显示在这里</p>";
+        return;
+      }
+      const rendered = marked.parse(markdown);
+      markdownPreview.innerHTML = DOMPurify.sanitize(rendered, {
+        USE_PROFILES: { html: true }
+      });
+    }
+
+    function setViewMode(mode) {
+      resultGrid.classList.remove("single-editor", "single-preview");
+      viewDualBtn.classList.toggle("active", mode === "dual");
+      viewEditorBtn.classList.toggle("active", mode === "editor");
+      viewPreviewBtn.classList.toggle("active", mode === "preview");
+
+      if (mode === "editor") {
+        resultGrid.classList.add("single-editor");
+      } else if (mode === "preview") {
+        resultGrid.classList.add("single-preview");
+      }
+    }
+
+    async function requestViaLocalApi(articleUrl) {
+      const apiUrl = "/api/wx2md?url=" + encodeURIComponent(articleUrl);
+      const response = await fetchWithTimeout(apiUrl, REQUEST_TIMEOUT_MS);
+      if (response.status === 404) {
+        throw new Error("未检测到本地转换接口，请重启服务：npm run start");
+      }
+      if (!response.ok) {
+        let detail = "";
+        try {
+          const errData = await response.json();
+          detail = errData.detail || errData.error || "";
+        } catch (error) {
+          detail = "";
+        }
+        throw new Error("本地接口请求失败（" + response.status + "）" + (detail ? "：" + detail : ""));
+      }
+
+      const data = await response.json();
+      if (!data || !data.ok) {
+        throw new Error((data && (data.detail || data.error)) || "本地接口返回异常");
+      }
+      return data;
+    }
+
+    function fallbackCopyText(text) {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.setAttribute("readonly", "");
+      textArea.style.position = "fixed";
+      textArea.style.opacity = "0";
+      textArea.style.pointerEvents = "none";
+      document.body.appendChild(textArea);
+      textArea.select();
+      textArea.setSelectionRange(0, text.length);
+      const copied = document.execCommand("copy");
+      document.body.removeChild(textArea);
+      return copied;
+    }
+
+    async function copyText(text, button) {
+      if (!text) return;
+      let copied = false;
+      try {
+        if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          copied = true;
+        } else {
+          copied = fallbackCopyText(text);
+        }
+      } catch (error) {
+        copied = fallbackCopyText(text);
+        if (!copied) {
+          console.error(error);
+        }
+      }
+
+      if (!copied) {
+        alert("复制失败，请检查浏览器权限后重试");
+        return;
+      }
+
+      const oldText = button.textContent;
+      button.textContent = "已复制";
+      setTimeout(function () {
+        button.textContent = oldText;
+      }, 1200);
+    }
+
+    function markdownFileName(url) {
+      try {
+        const parsed = new URL(url);
+        const articleId = parsed.searchParams.get("mid") || parsed.searchParams.get("sn") || Date.now().toString();
+        return "wechat-article-" + articleId + ".md";
+      } catch (error) {
+        return "wechat-article.md";
+      }
+    }
+
+    async function convertWechatArticle() {
+      const inputUrl = (wechatUrlInput.value || "").trim();
+      if (!inputUrl) {
+        setStatus("请先输入微信文章地址", true);
+        return;
+      }
+
+      if (!isWechatArticleUrl(inputUrl)) {
+        setStatus("仅支持 mp.weixin.qq.com 的微信文章地址", true);
+        return;
+      }
+
+      convertBtn.disabled = true;
+      setStatus("正在通过本地中转抓取并转换，请稍候...");
+
+      try {
+        const data = await requestViaLocalApi(inputUrl);
+        const markdown = toMarkdownFromProxyResponse(data.content);
+        if (!markdown) {
+          throw new Error("未获取到可用 Markdown");
+        }
+
+        markdownOutput.value = markdown;
+        renderMarkdownPreview(markdown);
+        const proxyHost = data.proxy ? data.proxy.split("/")[2] : "";
+        setStatus("转换成功，可复制或下载 Markdown。" + (proxyHost ? "（代理：" + proxyHost + "）" : ""));
+      } catch (error) {
+        console.error(error);
+        const message = String((error && error.message) || "");
+        if (/wechat captcha required|wappoc_appmsgcaptcha|captcha/i.test(message)) {
+          setStatus("当前文章触发微信验证码校验，公开抓取链路无法直接获取正文。请稍后重试，或更换无需验证码的文章链接。", true);
+          return;
+        }
+        if (error && error.name === "AbortError") {
+          setStatus("请求超时（" + (REQUEST_TIMEOUT_MS / 1000) + " 秒），请稍后重试", true);
+        } else {
+          setStatus("转换失败：" + (error.message || "未知错误"), true);
+        }
+      } finally {
+        convertBtn.disabled = false;
+      }
+    }
+
+    convertBtn.addEventListener("click", convertWechatArticle);
+
+    wechatUrlInput.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        convertWechatArticle();
+      }
+    });
+
+    copyMarkdownBtn.addEventListener("click", function () {
+      copyText(markdownOutput.value, copyMarkdownBtn);
+    });
+
+    markdownOutput.addEventListener("input", function () {
+      renderMarkdownPreview(markdownOutput.value);
+    });
+
+    viewDualBtn.addEventListener("click", function () {
+      setViewMode("dual");
+    });
+
+    viewEditorBtn.addEventListener("click", function () {
+      setViewMode("editor");
+    });
+
+    viewPreviewBtn.addEventListener("click", function () {
+      setViewMode("preview");
+    });
+
+    downloadMarkdownBtn.addEventListener("click", function () {
+      const markdown = markdownOutput.value || "";
+      if (!markdown.trim()) {
+        setStatus("暂无可下载内容，请先完成转换", true);
+        return;
+      }
+
+      const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = markdownFileName(wechatUrlInput.value || "");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+      setStatus("文件已开始下载。");
+    });
+
+    clearBtn.addEventListener("click", function () {
+      wechatUrlInput.value = "";
+      markdownOutput.value = "";
+      renderMarkdownPreview("");
+      setStatus("");
+    });
+
+    renderMarkdownPreview("");
+    setViewMode("dual");
+  </script>
+</body>
+</html>

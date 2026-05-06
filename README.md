@@ -7,6 +7,7 @@
 - `index.html`：Landing 首页（两个入口卡片）
 - `rt2md.html`：富文本 -> Markdown
 - `md2rt.html`：Markdown -> 富文本（支持表格、行内代码样式）
+- `wx2md.html`：微信文章链接 -> Markdown
 
 ## 本地运行
 
@@ -19,6 +20,7 @@ npm run start
 - `http://localhost:8080/`（Landing）
 - `http://localhost:8080/rt2md.html`
 - `http://localhost:8080/md2rt.html`
+- `http://localhost:8080/wx2md.html`
 
 ## 随机端口启动（推荐）
 
@@ -30,6 +32,7 @@ npm run start:local
 
 - 当前访问地址（例如 `http://127.0.0.1:64421`）
 - 将 `md2text.local` 映射为无端口访问的命令提示
+- 自动监听 `server.js`，文件保存后自动重启本地服务（端口不变）
 
 > 说明：项目使用 `server.js`（Node.js）启动本地静态站点，并提供 `/api/wx2md` 同源接口给微信文章转换页面调用，避免浏览器直接请求第三方代理时的证书/跨域问题。
 
@@ -52,6 +55,7 @@ sudo bash scripts/map-md2text-local.sh 64421
 ├── index.html        # Landing 首页
 ├── rt2md.html        # 富文本 -> Markdown
 ├── md2rt.html        # Markdown -> 富文本
+├── wx2md.html        # 微信文章 -> Markdown
 ├── server.js         # 本地静态服务 + /api/wx2md 接口（Node.js）
 ├── scripts/
 │   ├── start-local.sh         # 随机端口启动脚本

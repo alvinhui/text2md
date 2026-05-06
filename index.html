@@ -57,7 +57,7 @@
 
     .cards {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 14px;
     }
 
@@ -127,6 +127,12 @@
       font-size: 12px;
     }
 
+    @media (max-width: 1100px) {
+      .cards {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
     @media (max-width: 860px) {
       .cards {
         grid-template-columns: 1fr;
@@ -153,6 +159,13 @@
         <span class="card-tag">入口 02</span>
         <h2 class="card-title">Markdown -> 富文本</h2>
         <p class="card-desc">适合将 Markdown 实时渲染为可编辑富文本，支持表格与行内代码样式展示。</p>
+        <span class="card-action">进入工具</span>
+      </a>
+
+      <a class="card" href="./wx2md.html">
+        <span class="card-tag">入口 03</span>
+        <h2 class="card-title">微信文章 -> Markdown</h2>
+        <p class="card-desc">输入公众号文章链接，一键提取正文并转换为 Markdown，便于二次编辑与存档。</p>
         <span class="card-action">进入工具</span>
       </a>
     </section>

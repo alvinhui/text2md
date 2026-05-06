@@ -374,7 +374,7 @@
   cursor: pointer;
 }
 
-#markdownOutput {
+.rt2md-page #markdownOutput {
   margin: 0;
   width: 100%;
   height: 100%;
@@ -392,6 +392,7 @@
   overflow-x: hidden;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .rt2md-preview {

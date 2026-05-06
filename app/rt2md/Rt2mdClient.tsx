@@ -724,7 +724,7 @@ export default function Rt2mdClient() {
           </header>
           <div className="markdown-wrap">
             {outputView === "markdown" ? (
-              <textarea id="markdownOutput" spellCheck={false} value={markdown} readOnly />
+              <textarea id="markdownOutput" spellCheck={false} value={markdown} readOnly wrap="soft" />
             ) : (
               <div
                 id="markdownPreview"

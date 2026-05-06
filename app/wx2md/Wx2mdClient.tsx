@@ -1,45 +1,64 @@
 "use client";
 
+import createDOMPurify from "dompurify";
+import { marked } from "marked";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import TurndownService from "turndown";
 import { gfm } from "turndown-plugin-gfm";
-import { marked } from "marked";
-import createDOMPurify from "dompurify";
 
-const REQUEST_TIMEOUT_MS = 25000;
+type Wx2mdApiSuccess = {
+  ok: true;
+  content: string;
+  proxy: string | null;
+};
 
-function createTurndownService() {
+type Wx2mdApiError = {
+  ok: false;
+  error: string;
+  detail?: string;
+};
+
+type StatusState = {
+  text: string;
+  isError: boolean;
+};
+
+type ViewMode = "dual" | "editor" | "preview";
+
+const REQUEST_TIMEOUT_MS = 25_000;
+
+function createTurndownService(): TurndownService {
   const service = new TurndownService({
     headingStyle: "atx",
     hr: "---",
     bulletListMarker: "-",
     codeBlockStyle: "fenced",
   });
-  service.use(gfm);
+  service.use(gfm as never);
   return service;
 }
 
-function isWechatArticleUrl(url) {
+function isWechatArticleUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     return parsed.hostname === "mp.weixin.qq.com";
-  } catch (_error) {
+  } catch {
     return false;
   }
 }
 
-function markdownFileName(url) {
+function markdownFileName(url: string): string {
   try {
     const parsed = new URL(url);
     const articleId = parsed.searchParams.get("mid") || parsed.searchParams.get("sn") || Date.now().toString();
     return `wechat-article-${articleId}.md`;
-  } catch (_error) {
+  } catch {
     return "wechat-article.md";
   }
 }
 
-function toMarkdownFromWechatHtml(htmlText, turndownService) {
+function toMarkdownFromWechatHtml(htmlText: string, turndownService: TurndownService): string {
   const doc = new DOMParser().parseFromString(htmlText, "text/html");
   const title =
     doc.querySelector("#activity-name")?.textContent?.trim() ||
@@ -51,7 +70,7 @@ function toMarkdownFromWechatHtml(htmlText, turndownService) {
     throw new Error("未找到文章正文节点（#js_content）");
   }
 
-  const cloned = contentNode.cloneNode(true);
+  const cloned = contentNode.cloneNode(true) as HTMLElement;
   cloned.querySelectorAll("script, style, noscript").forEach((node) => node.remove());
   cloned.querySelectorAll("img").forEach((img) => {
     const src = img.getAttribute("data-src") || img.getAttribute("data-original-src") || img.getAttribute("src");
@@ -70,8 +89,8 @@ function toMarkdownFromWechatHtml(htmlText, turndownService) {
   return markdown;
 }
 
-function toMarkdownFromProxyResponse(responseText, turndownService) {
-  const text = (responseText || "").trim();
+function toMarkdownFromProxyResponse(responseText: string, turndownService: TurndownService): string {
+  const text = responseText.trim();
   if (!text) {
     throw new Error("未获取到有效内容");
   }
@@ -83,22 +102,37 @@ function toMarkdownFromProxyResponse(responseText, turndownService) {
   return text;
 }
 
+async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { method: "GET", signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export default function Wx2mdClient() {
-  const [wechatUrl, setWechatUrl] = useState("");
-  const [markdown, setMarkdown] = useState("");
-  const [status, setStatus] = useState({ text: "", isError: false });
-  const [converting, setConverting] = useState(false);
-  const [viewMode, setViewMode] = useState("dual");
-  const [copyText, setCopyText] = useState("复制 Markdown");
+  const [wechatUrl, setWechatUrl] = useState<string>("");
+  const [markdown, setMarkdown] = useState<string>("");
+  const [status, setStatus] = useState<StatusState>({ text: "", isError: false });
+  const [converting, setConverting] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("dual");
+  const [copyText, setCopyText] = useState<string>("复制 Markdown");
 
   const turndownService = useMemo(() => createTurndownService(), []);
-  const previewHtml = useMemo(() => {
-    const md = (markdown || "").trim();
+  const previewHtml = useMemo<string>(() => {
+    const md = markdown.trim();
     if (!md) {
       return "<p class=\"empty\">Markdown 预览会显示在这里</p>";
     }
     if (typeof window === "undefined") {
-      return typeof marked.parse(md) === "string" ? marked.parse(md) : "";
+      const rendered = marked.parse(md);
+      return typeof rendered === "string" ? rendered : "";
     }
     const purifier = createDOMPurify(window);
     const rendered = marked.parse(md);
@@ -106,18 +140,8 @@ export default function Wx2mdClient() {
     return purifier.sanitize(normalized, { USE_PROFILES: { html: true } });
   }, [markdown]);
 
-  async function fetchWithTimeout(url, timeoutMs) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      return await fetch(url, { method: "GET", signal: controller.signal });
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-
-  async function convertWechatArticle() {
-    const inputUrl = (wechatUrl || "").trim();
+  async function convertWechatArticle(): Promise<void> {
+    const inputUrl = wechatUrl.trim();
     if (!inputUrl) {
       setStatus({ text: "请先输入微信文章地址", isError: true });
       return;
@@ -136,17 +160,18 @@ export default function Wx2mdClient() {
       if (!response.ok) {
         let detail = "";
         try {
-          const errData = await response.json();
+          const errData = (await response.json()) as Partial<Wx2mdApiError>;
           detail = errData.detail || errData.error || "";
-        } catch (_error) {
+        } catch {
           detail = "";
         }
         throw new Error(`本地接口请求失败（${response.status}）${detail ? `：${detail}` : ""}`);
       }
-      const data = await response.json();
-      if (!data?.ok) {
-        throw new Error(data?.detail || data?.error || "本地接口返回异常");
+      const data = (await response.json()) as Wx2mdApiSuccess;
+      if (!data.ok) {
+        throw new Error("本地接口返回异常");
       }
+
       const nextMarkdown = toMarkdownFromProxyResponse(data.content, turndownService);
       setMarkdown(nextMarkdown);
       const proxyHost = data.proxy ? data.proxy.split("/")[2] : "";
@@ -154,14 +179,14 @@ export default function Wx2mdClient() {
         text: `转换成功，可复制或下载 Markdown。${proxyHost ? `（代理：${proxyHost}）` : ""}`,
         isError: false,
       });
-    } catch (error) {
-      const message = String(error?.message || "");
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
       if (/wechat captcha required|wappoc_appmsgcaptcha|captcha/i.test(message)) {
         setStatus({
           text: "当前文章触发微信验证码校验，公开抓取链路无法直接获取正文。请稍后重试，或更换无需验证码的文章链接。",
           isError: true,
         });
-      } else if (error?.name === "AbortError") {
+      } else if (error instanceof DOMException && error.name === "AbortError") {
         setStatus({ text: `请求超时（${REQUEST_TIMEOUT_MS / 1000} 秒），请稍后重试`, isError: true });
       } else {
         setStatus({ text: `转换失败：${message || "未知错误"}`, isError: true });
@@ -195,11 +220,11 @@ export default function Wx2mdClient() {
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   event.preventDefault();
-                  convertWechatArticle();
+                  void convertWechatArticle();
                 }
               }}
             />
-            <button id="convertBtn" className="btn" type="button" onClick={convertWechatArticle} disabled={converting}>
+            <button id="convertBtn" className="btn" type="button" onClick={() => void convertWechatArticle()} disabled={converting}>
               {converting ? "转换中..." : "开始转换"}
             </button>
           </div>

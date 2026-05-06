@@ -5,7 +5,59 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import TurndownService from "turndown";
 import { gfm } from "turndown-plugin-gfm";
 
-const codeLanguageOptions = [
+type CodeLanguageOption = {
+  value: string;
+  label: string;
+};
+
+type CodeThemeOption = {
+  value: string;
+  label: string;
+};
+
+type ActiveCodeMeta = {
+  language: string;
+  theme: string;
+};
+
+type QuillRange = {
+  index: number;
+  length: number;
+};
+
+type QuillLine = {
+  domNode: Node;
+};
+
+type QuillRoot = HTMLElement & {
+  innerHTML: string;
+  querySelectorAll<E extends Element = Element>(selectors: string): NodeListOf<E>;
+};
+
+type QuillInstance = {
+  root: QuillRoot;
+  on(eventName: "text-change" | "selection-change", handler: () => void): void;
+  getSelection(): QuillRange | null;
+  getLine(index: number): [QuillLine | null, number];
+  getText(): string;
+  setText(text: string): void;
+  clipboard: {
+    dangerouslyPasteHTML(html: string): void;
+  };
+};
+
+type QuillConstructor = new (
+  element: HTMLElement,
+  options: {
+    theme: "snow";
+    placeholder: string;
+    modules: {
+      toolbar: Array<unknown>;
+    };
+  }
+) => QuillInstance;
+
+const codeLanguageOptions: CodeLanguageOption[] = [
   { value: "plain", label: "Plain Text" },
   { value: "javascript", label: "JavaScript" },
   { value: "typescript", label: "TypeScript" },
@@ -31,79 +83,89 @@ const codeLanguageOptions = [
   { value: "markdown", label: "Markdown" },
 ];
 
-const codeThemeOptions = [
+const codeThemeOptions: CodeThemeOption[] = [
   { value: "yuque-light-pro", label: "Yuque Light Pro" },
   { value: "yuque-dark-pro", label: "Yuque Dark Pro" },
   { value: "github-light", label: "GitHub Light" },
   { value: "dracula", label: "Dracula" },
 ];
 
-function getFenceByCode(codeText) {
+function getFenceByCode(codeText: string): string {
   const matches = codeText.match(/`+/g) || [];
   const maxTickLength = matches.reduce((max, item) => Math.max(max, item.length), 0);
   return "`".repeat(Math.max(3, maxTickLength + 1));
 }
 
-function getCodeLanguageFromNode(node) {
+function getCodeLanguageFromNode(node: Element): string {
   const fromData = (node.getAttribute("data-code-language") || "").trim().toLowerCase();
   if (fromData) return fromData;
-  const classText = (node.className || "").toLowerCase();
+  const classText = (node.getAttribute("class") || "").toLowerCase();
   const classMatch = classText.match(/language-([\w-]+)/);
   return classMatch ? classMatch[1] : "plain";
 }
 
-function getCodeThemeFromNode(node) {
+function getCodeThemeFromNode(node: Element): string {
   const fromData = (node.getAttribute("data-code-theme") || "").trim().toLowerCase();
   if (!fromData) return "yuque-light-pro";
   return codeThemeOptions.some((item) => item.value === fromData) ? fromData : "yuque-light-pro";
 }
 
-function getCodeThemeLabel(themeValue) {
+function getCodeThemeLabel(themeValue: string): string {
   const hit = codeThemeOptions.find((item) => item.value === themeValue);
   return hit ? hit.label : "Yuque Light Pro";
 }
 
 export default function Rt2mdClient() {
-  const editorRef = useRef(null);
-  const quillRef = useRef(null);
-  const [markdown, setMarkdown] = useState("");
-  const [copyMdText, setCopyMdText] = useState("复制Markdown源码");
-  const [copyTextBtn, setCopyTextBtn] = useState("清空并复制文本");
-  const [activeCodeMeta, setActiveCodeMeta] = useState({ language: "plain", theme: "yuque-light-pro" });
-  const [hasActiveCodeBlock, setHasActiveCodeBlock] = useState(false);
+  const editorRef = useRef<HTMLDivElement | null>(null);
+  const quillRef = useRef<QuillInstance | null>(null);
+  const turndownServiceRef = useRef<TurndownService | null>(null);
 
-  const turndownServiceRef = useRef(null);
+  const [markdown, setMarkdown] = useState<string>("");
+  const [copyMdText, setCopyMdText] = useState<string>("复制Markdown源码");
+  const [copyTextBtn, setCopyTextBtn] = useState<string>("清空并复制文本");
+  const [activeCodeMeta, setActiveCodeMeta] = useState<ActiveCodeMeta>({
+    language: "plain",
+    theme: "yuque-light-pro",
+  });
+  const [hasActiveCodeBlock, setHasActiveCodeBlock] = useState<boolean>(false);
 
   useEffect(() => {
-    turndownServiceRef.current = new TurndownService({
+    const service = new TurndownService({
       headingStyle: "atx",
       hr: "---",
       bulletListMarker: "-",
       codeBlockStyle: "fenced",
     });
-    turndownServiceRef.current.use(gfm);
-    turndownServiceRef.current.addRule("codeBlockWithLanguage", {
-      filter(node) {
-        const isPre = node.nodeName === "PRE";
-        const hasQuillSyntax = isPre && node.classList && node.classList.contains("ql-syntax");
-        const hasLanguageHint =
+    service.use(gfm as never);
+    service.addRule("codeBlockWithLanguage", {
+      filter(node: Node) {
+        const elementNode = node as Element;
+        const isPre = elementNode.nodeName === "PRE";
+        const classList = elementNode.classList;
+        const hasQuillSyntax = Boolean(isPre && classList && classList.contains("ql-syntax"));
+        const hasLanguageHint = Boolean(
           isPre &&
-          (node.hasAttribute("data-code-language") || /language-[\w-]+/i.test(node.className || ""));
+            (elementNode.hasAttribute("data-code-language") ||
+              /language-[\w-]+/i.test(elementNode.getAttribute("class") || ""))
+        );
         return hasQuillSyntax || hasLanguageHint;
       },
-      replacement(_content, node) {
-        const codeText = (node.textContent || "").replace(/\n$/, "");
-        const language = getCodeLanguageFromNode(node);
+      replacement(_content: string, node: Node) {
+        const elementNode = node as Element;
+        const codeText = (elementNode.textContent || "").replace(/\n$/, "");
+        const language = getCodeLanguageFromNode(elementNode);
         const fence = getFenceByCode(codeText);
         const langToken = language === "plain" ? "" : language;
         return `\n\n${fence}${langToken}\n${codeText}\n${fence}\n\n`;
       },
     });
+    turndownServiceRef.current = service;
   }, []);
 
   const ensureCodeLanguageMetadata = useCallback(() => {
-    if (!quillRef.current) return;
-    quillRef.current.root.querySelectorAll("pre.ql-syntax").forEach((pre) => {
+    const quill = quillRef.current;
+    if (!quill) return;
+    quill.root.querySelectorAll<HTMLPreElement>("pre.ql-syntax").forEach((pre) => {
       if (!pre.getAttribute("data-code-language")) {
         pre.setAttribute("data-code-language", "plain");
       }
@@ -116,27 +178,32 @@ export default function Rt2mdClient() {
   }, []);
 
   const toMarkdown = useCallback(() => {
-    if (!quillRef.current || !turndownServiceRef.current) return;
+    const quill = quillRef.current;
+    const service = turndownServiceRef.current;
+    if (!quill || !service) return;
     ensureCodeLanguageMetadata();
-    const html = quillRef.current.root.innerHTML;
-    setMarkdown(turndownServiceRef.current.turndown(html).trim());
+    setMarkdown(service.turndown(quill.root.innerHTML).trim());
   }, [ensureCodeLanguageMetadata]);
 
-  const getActiveCodeBlock = useCallback(() => {
-    if (!quillRef.current) return null;
-    const range = quillRef.current.getSelection();
+  const getActiveCodeBlock = useCallback((): HTMLPreElement | null => {
+    const quill = quillRef.current;
+    if (!quill) return null;
+    const range = quill.getSelection();
     if (!range) return null;
-    const [line] = quillRef.current.getLine(range.index);
-    if (!line?.domNode || !(line.domNode instanceof HTMLElement)) return null;
-    if (line.domNode.tagName === "PRE") return line.domNode;
-    return line.domNode.closest("pre.ql-syntax");
+    const [line] = quill.getLine(range.index);
+    const lineNode = line?.domNode;
+    if (!lineNode || !(lineNode instanceof HTMLElement)) return null;
+    if (lineNode.tagName === "PRE") return lineNode as HTMLPreElement;
+    return lineNode.closest("pre.ql-syntax");
   }, []);
 
   useEffect(() => {
     let mounted = true;
     async function setup() {
-      const { default: Quill } = await import("quill");
+      const quillModule = await import("quill");
+      const Quill = quillModule.default as unknown as QuillConstructor;
       if (!mounted || !editorRef.current) return;
+
       const quill = new Quill(editorRef.current, {
         theme: "snow",
         placeholder: "请粘贴或编辑富文本内容...",
@@ -201,20 +268,23 @@ export default function Rt2mdClient() {
     };
   }, [ensureCodeLanguageMetadata, getActiveCodeBlock, toMarkdown]);
 
-  const applyCodeMeta = useCallback((nextLanguage, nextTheme) => {
-    const block = getActiveCodeBlock();
-    if (!block) return;
-    if (nextLanguage) {
-      block.setAttribute("data-code-language", nextLanguage);
-    }
-    if (nextTheme) {
-      block.setAttribute("data-code-theme", nextTheme);
-      block.setAttribute("data-code-theme-label", getCodeThemeLabel(nextTheme));
-    }
-    toMarkdown();
-  }, [getActiveCodeBlock, toMarkdown]);
+  const applyCodeMeta = useCallback(
+    (nextLanguage: string | null, nextTheme: string | null) => {
+      const block = getActiveCodeBlock();
+      if (!block) return;
+      if (nextLanguage) {
+        block.setAttribute("data-code-language", nextLanguage);
+      }
+      if (nextTheme) {
+        block.setAttribute("data-code-theme", nextTheme);
+        block.setAttribute("data-code-theme-label", getCodeThemeLabel(nextTheme));
+      }
+      toMarkdown();
+    },
+    [getActiveCodeBlock, toMarkdown]
+  );
 
-  const copyText = useCallback(async (text) => {
+  const copyText = useCallback(async (text: string): Promise<boolean> => {
     if (!text) return false;
     await navigator.clipboard.writeText(text);
     return true;

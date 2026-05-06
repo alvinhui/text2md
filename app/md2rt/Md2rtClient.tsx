@@ -1,13 +1,12 @@
 "use client";
 
+import createDOMPurify from "dompurify";
+import { marked } from "marked";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
-import { marked } from "marked";
-import createDOMPurify from "dompurify";
 
 marked.setOptions({
   gfm: true,
-  tables: true,
   breaks: false,
 });
 
@@ -27,11 +26,11 @@ const INITIAL_MARKDOWN = `# Markdown 转富文本示例
 `;
 
 export default function Md2rtClient() {
-  const [markdown, setMarkdown] = useState(INITIAL_MARKDOWN);
-  const [copyText, setCopyText] = useState("复制富文本HTML");
+  const [markdown, setMarkdown] = useState<string>(INITIAL_MARKDOWN);
+  const [copyText, setCopyText] = useState<string>("复制富文本HTML");
 
-  const safeHtml = useMemo(() => {
-    const renderedHtml = marked.parse(markdown || "");
+  const safeHtml = useMemo<string>(() => {
+    const renderedHtml = marked.parse(markdown);
     const normalized = typeof renderedHtml === "string" ? renderedHtml : "";
     if (typeof window === "undefined") {
       return normalized || "<p><br></p>";
@@ -41,14 +40,13 @@ export default function Md2rtClient() {
   }, [markdown]);
 
   const handleCopyHtml = useCallback(async () => {
-    const html = safeHtml;
-    if (!html) return;
-    await navigator.clipboard.writeText(html);
+    if (!safeHtml) return;
+    await navigator.clipboard.writeText(safeHtml);
     setCopyText("已复制");
     setTimeout(() => setCopyText("复制富文本HTML"), 1200);
   }, [safeHtml]);
 
-  const insertSnippet = useCallback((snippet) => {
+  const insertSnippet = useCallback((snippet: string) => {
     setMarkdown((prev) => `${prev}${prev.endsWith("\n") ? "" : "\n"}${snippet}`);
   }, []);
 
@@ -119,7 +117,12 @@ export default function Md2rtClient() {
             <button id="copyRichHtmlBtn" className="btn" type="button" onClick={handleCopyHtml}>{copyText}</button>
           </header>
           <div className="rich-wrap">
-            <div id="richOutputEditor" contentEditable suppressContentEditableWarning dangerouslySetInnerHTML={{ __html: safeHtml }} />
+            <div
+              id="richOutputEditor"
+              contentEditable
+              suppressContentEditableWarning
+              dangerouslySetInnerHTML={{ __html: safeHtml }}
+            />
           </div>
         </article>
       </section>

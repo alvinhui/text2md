@@ -4,7 +4,23 @@ import https from "node:https";
 const MAX_RETRIES = 1;
 const REQUEST_TIMEOUT_MS = 6000;
 
-function buildProxyCandidates(articleUrl) {
+type FetchRemoteTextSuccess = {
+  content: string;
+  proxyUrl: string;
+  error: null;
+  errorLogs: string[];
+};
+
+type FetchRemoteTextFailure = {
+  content: null;
+  proxyUrl: null;
+  error: string;
+  errorLogs: string[];
+};
+
+export type FetchRemoteTextResult = FetchRemoteTextSuccess | FetchRemoteTextFailure;
+
+function buildProxyCandidates(articleUrl: string): string[] {
   const normalizedUrl = articleUrl.replace(/^https?:\/\//i, "");
   return [
     articleUrl,
@@ -14,8 +30,13 @@ function buildProxyCandidates(articleUrl) {
   ];
 }
 
-function requestText(targetUrl, timeoutMs, insecureTls = false, redirectsLeft = 3) {
-  return new Promise((resolve, reject) => {
+function requestText(
+  targetUrl: string,
+  timeoutMs: number,
+  insecureTls = false,
+  redirectsLeft = 3
+): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
     const urlObj = new URL(targetUrl);
     const requester = urlObj.protocol === "https:" ? https : http;
 
@@ -51,8 +72,8 @@ function requestText(targetUrl, timeoutMs, insecureTls = false, redirectsLeft = 
           return;
         }
 
-        const chunks = [];
-        res.on("data", (chunk) => chunks.push(chunk));
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk: Buffer) => chunks.push(chunk));
         res.on("end", () => {
           const body = Buffer.concat(chunks).toString("utf-8").trim();
           if (statusCode < 200 || statusCode >= 300) {
@@ -78,9 +99,9 @@ function requestText(targetUrl, timeoutMs, insecureTls = false, redirectsLeft = 
   });
 }
 
-export async function fetchRemoteText(articleUrl) {
-  let lastError = null;
-  const errorLogs = [];
+export async function fetchRemoteText(articleUrl: string): Promise<FetchRemoteTextResult> {
+  let lastError: string | null = null;
+  const errorLogs: string[] = [];
 
   for (const proxyUrl of buildProxyCandidates(articleUrl)) {
     for (let i = 0; i < MAX_RETRIES; i += 1) {
@@ -88,7 +109,7 @@ export async function fetchRemoteText(articleUrl) {
         const insecureTls = proxyUrl.includes("r.jina.ai/");
         const content = await requestText(proxyUrl, REQUEST_TIMEOUT_MS, insecureTls);
         return { content, proxyUrl, error: null, errorLogs };
-      } catch (error) {
+      } catch (error: unknown) {
         lastError = error instanceof Error ? error.message : String(error);
         errorLogs.push(`${new URL(proxyUrl).host}: ${lastError}`);
       }

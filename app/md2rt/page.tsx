@@ -1,6 +1,7 @@
+import type { Metadata } from "next";
 import Md2rtClient from "./Md2rtClient";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Markdown -> 富文本",
 };
 

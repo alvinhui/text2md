@@ -1,6 +1,7 @@
+import type { Metadata } from "next";
 import Wx2mdClient from "./Wx2mdClient";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "微信文章 -> Markdown",
 };
 

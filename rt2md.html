@@ -124,6 +124,10 @@
       height: min(74vh, 760px);
     }
 
+    .editor-wrap {
+      position: relative;
+    }
+
     #editor { height: calc(100% - 42px); }
 
     #editor .ql-toolbar.ql-snow {
@@ -147,21 +151,91 @@
       margin: 0 auto;
     }
 
-    #editor .code-lang-wrap {
-      margin-left: auto;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      color: #6b7280;
-      font-size: 12px;
+    #editor .ql-editor pre.ql-syntax {
+      position: relative;
+      padding-top: 28px;
+      border-radius: 10px;
+      border: 1px solid #dbe2ee;
+      background: #f8fafc;
+      color: #1f2937;
+      margin: 8px 0;
     }
 
-    #editor .code-lang-label {
-      white-space: nowrap;
+    #editor .ql-editor pre.ql-syntax[data-code-theme="yuque-dark-pro"] {
+      background: #1f2430;
+      border-color: #394154;
+      color: #d6deeb;
+    }
+
+    #editor .ql-editor pre.ql-syntax[data-code-theme="github-light"] {
+      background: #f6f8fa;
+      border-color: #d0d7de;
+      color: #24292f;
+    }
+
+    #editor .ql-editor pre.ql-syntax[data-code-theme="dracula"] {
+      background: #282a36;
+      border-color: #44475a;
+      color: #f8f8f2;
+    }
+
+    #editor .ql-editor pre.ql-syntax[data-code-language]:not([data-code-language="plain"])::before {
+      content: attr(data-code-language);
+      position: absolute;
+      top: 6px;
+      left: 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      background: rgba(15, 23, 42, 0.04);
+      color: #64748b;
+      font-size: 11px;
+      line-height: 18px;
+      height: 18px;
+      padding: 0 7px;
+      text-transform: lowercase;
+      pointer-events: none;
+    }
+
+    #editor .ql-editor pre.ql-syntax[data-code-theme]::after {
+      content: attr(data-code-theme-label);
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      background: rgba(15, 23, 42, 0.04);
+      color: #64748b;
+      font-size: 11px;
+      line-height: 18px;
+      height: 18px;
+      padding: 0 7px;
+      pointer-events: none;
+    }
+
+    .code-floating-toolbar {
+      position: absolute;
+      z-index: 40;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid #d8dde8;
+      background: #fff;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+    }
+
+    .code-floating-toolbar.visible {
+      display: inline-flex;
+    }
+
+    .code-floating-toolbar .toolbar-label {
+      color: #6b7280;
+      font-size: 12px;
       user-select: none;
     }
 
-    #editor .code-lang-select {
+    .code-floating-toolbar select {
       height: 26px;
       border: 1px solid #d8dde8;
       border-radius: 6px;
@@ -172,28 +246,6 @@
       outline: none;
       min-width: 118px;
       cursor: pointer;
-    }
-
-    #editor .ql-editor pre.ql-syntax {
-      position: relative;
-      padding-top: 24px;
-    }
-
-    #editor .ql-editor pre.ql-syntax[data-code-language]:not([data-code-language="plain"])::before {
-      content: attr(data-code-language);
-      position: absolute;
-      top: 6px;
-      right: 8px;
-      border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.3);
-      background: rgba(15, 23, 42, 0.08);
-      color: #cbd5e1;
-      font-size: 11px;
-      line-height: 18px;
-      height: 18px;
-      padding: 0 7px;
-      text-transform: lowercase;
-      pointer-events: none;
     }
 
     #markdownOutput {
@@ -289,6 +341,12 @@
       { value: "css", label: "CSS" },
       { value: "markdown", label: "Markdown" }
     ];
+    const codeThemeOptions = [
+      { value: "yuque-light-pro", label: "Yuque Light Pro" },
+      { value: "yuque-dark-pro", label: "Yuque Dark Pro" },
+      { value: "github-light", label: "GitHub Light" },
+      { value: "dracula", label: "Dracula" }
+    ];
 
     const quill = new Quill("#editor", {
       theme: "snow",
@@ -309,24 +367,33 @@
     const markdownOutput = document.querySelector("#markdownOutput");
     const copyRichBtn = document.querySelector("#copyRichBtn");
     const copyMarkdownBtn = document.querySelector("#copyMarkdownBtn");
+    const editorWrap = document.querySelector(".editor-wrap");
     const qlToolbar = quill.getModule("toolbar") && quill.getModule("toolbar").container;
+    const qlEditor = quill.root;
 
-    const codeLangWrap = document.createElement("div");
-    codeLangWrap.className = "code-lang-wrap";
-    codeLangWrap.innerHTML = `
-      <span class="code-lang-label">代码语言</span>
-      <select id="codeLanguageSelect" class="code-lang-select"></select>
+    const floatingToolbar = document.createElement("div");
+    floatingToolbar.className = "code-floating-toolbar";
+    floatingToolbar.innerHTML = `
+      <span class="toolbar-label">语言</span>
+      <select id="floatingCodeLanguage"></select>
+      <span class="toolbar-label">皮肤</span>
+      <select id="floatingCodeTheme"></select>
     `;
-    if (qlToolbar) {
-      qlToolbar.appendChild(codeLangWrap);
-    }
+    editorWrap.appendChild(floatingToolbar);
 
-    const codeLanguageSelect = codeLangWrap.querySelector("#codeLanguageSelect");
+    const floatingCodeLanguage = floatingToolbar.querySelector("#floatingCodeLanguage");
+    const floatingCodeTheme = floatingToolbar.querySelector("#floatingCodeTheme");
     codeLanguageOptions.forEach((item) => {
       const opt = document.createElement("option");
       opt.value = item.value;
       opt.textContent = item.label;
-      codeLanguageSelect.appendChild(opt);
+      floatingCodeLanguage.appendChild(opt);
+    });
+    codeThemeOptions.forEach((item) => {
+      const opt = document.createElement("option");
+      opt.value = item.value;
+      opt.textContent = item.label;
+      floatingCodeTheme.appendChild(opt);
     });
 
     const turndownService = new TurndownService({
@@ -369,6 +436,18 @@
       return classMatch ? classMatch[1] : "plain";
     }
 
+    function getCodeThemeFromNode(node) {
+      const fromData = (node.getAttribute("data-code-theme") || "").trim().toLowerCase();
+      if (!fromData) return "yuque-light-pro";
+      const exists = codeThemeOptions.some((item) => item.value === fromData);
+      return exists ? fromData : "yuque-light-pro";
+    }
+
+    function getCodeThemeLabel(themeValue) {
+      const hit = codeThemeOptions.find((item) => item.value === themeValue);
+      return hit ? hit.label : "Yuque Light Pro";
+    }
+
     function getCodeBlockDomNodeAtRange(range) {
       if (!range) return null;
       const [line] = quill.getLine(range.index);
@@ -384,33 +463,62 @@
         if (!pre.getAttribute("data-code-language")) {
           pre.setAttribute("data-code-language", "plain");
         }
+        if (!pre.getAttribute("data-code-theme")) {
+          pre.setAttribute("data-code-theme", "yuque-light-pro");
+        }
+        const theme = getCodeThemeFromNode(pre);
+        pre.setAttribute("data-code-theme-label", getCodeThemeLabel(theme));
       });
     }
 
-    function syncCodeLanguageSelectFromCursor() {
+    function getActiveCodeBlock() {
       const range = quill.getSelection();
-      const codeBlock = getCodeBlockDomNodeAtRange(range);
-      if (!codeBlock) {
-        codeLanguageSelect.value = "plain";
-        return;
-      }
-      const current = getCodeLanguageFromNode(codeBlock);
-      if ([...codeLanguageSelect.options].some((opt) => opt.value === current)) {
-        codeLanguageSelect.value = current;
-      } else {
-        codeLanguageSelect.value = "plain";
-      }
+      return getCodeBlockDomNodeAtRange(range);
     }
 
-    function applySelectedLanguageToCurrentCodeBlock() {
-      const range = quill.getSelection(true);
-      if (!range) return;
-      const codeBlock = getCodeBlockDomNodeAtRange(range);
+    function updateFloatingToolbarPosition() {
+      const codeBlock = getActiveCodeBlock();
       if (!codeBlock) {
+        floatingToolbar.classList.remove("visible");
         return;
       }
-      codeBlock.setAttribute("data-code-language", codeLanguageSelect.value || "plain");
+      const language = getCodeLanguageFromNode(codeBlock);
+      const theme = getCodeThemeFromNode(codeBlock);
+      floatingCodeLanguage.value = codeLanguageOptions.some((item) => item.value === language)
+        ? language
+        : "plain";
+      floatingCodeTheme.value = theme;
+
+      const wrapRect = editorWrap.getBoundingClientRect();
+      const blockRect = codeBlock.getBoundingClientRect();
+      const panelWidth = 360;
+      let left = blockRect.left - wrapRect.left;
+      let top = blockRect.top - wrapRect.top - 42;
+      if (top < 50) {
+        top = blockRect.bottom - wrapRect.top + 6;
+      }
+      left = Math.max(8, Math.min(left, wrapRect.width - panelWidth - 8));
+      floatingToolbar.style.left = `${left}px`;
+      floatingToolbar.style.top = `${top}px`;
+      floatingToolbar.classList.add("visible");
+    }
+
+    function applyFloatingLanguage() {
+      const codeBlock = getActiveCodeBlock();
+      if (!codeBlock) return;
+      codeBlock.setAttribute("data-code-language", floatingCodeLanguage.value || "plain");
       toMarkdown();
+      updateFloatingToolbarPosition();
+    }
+
+    function applyFloatingTheme() {
+      const codeBlock = getActiveCodeBlock();
+      if (!codeBlock) return;
+      const theme = floatingCodeTheme.value || "yuque-light-pro";
+      codeBlock.setAttribute("data-code-theme", theme);
+      codeBlock.setAttribute("data-code-theme-label", getCodeThemeLabel(theme));
+      toMarkdown();
+      updateFloatingToolbarPosition();
     }
 
     function toMarkdown() {
@@ -463,14 +571,20 @@
 
     quill.on("text-change", toMarkdown);
     quill.on("editor-change", function (eventName) {
-      if (eventName === "selection-change") {
-        syncCodeLanguageSelectFromCursor();
-      } else if (eventName === "text-change") {
+      if (eventName === "text-change") {
         ensureCodeLanguageMetadata();
       }
+      updateFloatingToolbarPosition();
     });
 
-    codeLanguageSelect.addEventListener("change", applySelectedLanguageToCurrentCodeBlock);
+    floatingCodeLanguage.addEventListener("change", applyFloatingLanguage);
+    floatingCodeTheme.addEventListener("change", applyFloatingTheme);
+    qlEditor.addEventListener("scroll", function () {
+      updateFloatingToolbarPosition();
+    });
+    window.addEventListener("resize", function () {
+      updateFloatingToolbarPosition();
+    });
 
     copyMarkdownBtn.addEventListener("click", function () {
       copyText(markdownOutput.value, copyMarkdownBtn);
@@ -493,7 +607,7 @@
       <pre class="ql-syntax" spellcheck="false" data-code-language="javascript">const latency = await getNetworkLatency();</pre>
     `);
     ensureCodeLanguageMetadata();
-    syncCodeLanguageSelectFromCursor();
+    updateFloatingToolbarPosition();
     toMarkdown();
   </script>
 </body>

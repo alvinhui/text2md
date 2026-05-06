@@ -8,8 +8,8 @@ const https = require("node:https");
 const path = require("node:path");
 const { URL } = require("node:url");
 
-const REQUEST_TIMEOUT_MS = 15_000;
-const MAX_RETRIES = 2;
+const REQUEST_TIMEOUT_MS = 6_000;
+const MAX_RETRIES = 1;
 const HOST = "0.0.0.0";
 const PORT = Number(process.argv[2] || 8080);
 const ROOT_DIR = process.cwd();
@@ -34,8 +34,8 @@ function buildProxyCandidates(articleUrl) {
   const normalizedUrl = articleUrl.replace(/^https?:\/\//i, "");
   return [
     `https://r.jina.ai/http://${normalizedUrl}`,
+    `https://r.jina.ai/https://${normalizedUrl}`,
     `https://api.allorigins.win/raw?url=${encodeURIComponent(articleUrl)}`,
-    `https://corsproxy.io/?${encodeURIComponent(articleUrl)}`,
   ];
 }
 
@@ -87,20 +87,26 @@ function requestText(targetUrl, timeoutMs, insecureTls = false) {
 
 async function fetchRemoteText(articleUrl) {
   let lastError = null;
+  const errorLogs = [];
 
   for (const proxyUrl of buildProxyCandidates(articleUrl)) {
     for (let i = 0; i < MAX_RETRIES; i += 1) {
       try {
         const insecureTls = proxyUrl.includes("r.jina.ai/");
         const content = await requestText(proxyUrl, REQUEST_TIMEOUT_MS, insecureTls);
-        return { content, proxyUrl, error: null };
+        return { content, proxyUrl, error: null, errorLogs };
       } catch (error) {
         lastError = error instanceof Error ? error.message : String(error);
+        errorLogs.push(`${new URL(proxyUrl).host}: ${lastError}`);
       }
     }
   }
 
-  return { content: null, proxyUrl: null, error: lastError };
+  const friendlyError =
+    errorLogs.length > 0
+      ? errorLogs.join(" | ")
+      : lastError || "unknown error";
+  return { content: null, proxyUrl: null, error: friendlyError, errorLogs };
 }
 
 function sendJson(res, statusCode, payload) {

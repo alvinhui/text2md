@@ -9,14 +9,7 @@
 - `/md2rt`：Markdown -> 富文本
 - `/wx2md`：微信文章链接 -> Markdown（通过同源 `/api/wx2md` 抓取）
 
-兼容历史地址（自动 301）：
-
-- `/index.html` -> `/`
-- `/rt2md.html` -> `/rt2md`
-- `/md2rt.html` -> `/md2rt`
-- `/wx2md.html` -> `/wx2md`
-
-## 本地运行
+## 运行方式
 
 安装依赖：
 
@@ -24,17 +17,10 @@
 npm install
 ```
 
-开发模式：
+### 1) 标准开发模式（固定端口）
 
 ```bash
 npm run dev
-```
-
-生产构建与启动：
-
-```bash
-npm run build
-npm run start
 ```
 
 默认访问地址：
@@ -44,15 +30,15 @@ npm run start
 - `http://localhost:8080/md2rt`
 - `http://localhost:8080/wx2md`
 
-## 随机端口启动
+### 2) 随机端口启动
 
 ```bash
 npm run start:random
 ```
 
-该脚本会自动选择空闲端口并以 Next.js 开发模式启动，同时打印当前访问地址（例如 `http://127.0.0.1:64421`）
+该脚本会自动选择空闲端口并以 Next.js 开发模式启动，同时打印当前访问地址（例如 `http://127.0.0.1:64421`）。
 
-## 本地域名启动（`md2text.local`）
+### 3) 本地域名启动（`md2text.local`）
 
 ```bash
 npm run start:local
@@ -65,6 +51,13 @@ npm run start:local
 成功后可通过以下地址访问：
 
 - `http://md2text.local`
+
+### 4) 生产构建与启动
+
+```bash
+npm run build
+npm run start
+```
 
 ## 项目结构
 

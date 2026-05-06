@@ -134,6 +134,34 @@ const CODE_BLOCK_SELECTOR = "pre.ql-syntax, .ql-code-block-container";
 const HIGHLIGHT_AUTO_LANGUAGES = codeLanguageOptions
   .map((item) => item.value)
   .filter((language) => language !== "plain");
+const initialRichTextHtml = `
+  <h1>富文本转 Markdown 示例文档</h1>
+  <h2>1. 基础排版</h2>
+  <p>这是一段普通正文，包含 <strong>加粗</strong>、<em>斜体</em>、<u>下划线</u>、<s>删除线</s> 和 <a href="https://commonmark.org/">链接</a>。</p>
+  <h3>1.1 无序列表</h3>
+  <ul>
+    <li>保留段落、列表、引用和链接结构</li>
+    <li>自动识别代码块语言并输出 fenced code block</li>
+    <li>在右侧实时生成 Markdown 源码</li>
+  </ul>
+  <h3>1.2 有序列表</h3>
+  <ol>
+    <li>粘贴富文本内容</li>
+    <li>检查代码块语言和主题</li>
+    <li>复制 Markdown 结果</li>
+  </ol>
+  <h4>1.2.1 引用</h4>
+  <blockquote>保持内容结构清晰，转换结果才更容易继续编辑。</blockquote>
+  <h5>1.2.1.1 代码块示例</h5>
+  <pre class="ql-syntax" spellcheck="false" data-code-language="javascript" data-language="javascript">const latency = await getNetworkLatency();
+console.log(\`network latency: \${latency}ms\`);</pre>
+  <h6>1.2.1.1.1 配置片段</h6>
+  <pre class="ql-syntax" spellcheck="false" data-code-language="json" data-language="json">{
+  "mode": "rt2md",
+  "syntaxHighlight": true,
+  "headingDepth": 6
+}</pre>
+`;
 
 function normalizeCodeLanguage(language: string): string {
   return codeLanguageOptions.some((item) => item.value === language) ? language : "plain";
@@ -373,7 +401,7 @@ export default function Rt2mdClient() {
             languages: quillLanguageOptions,
           },
           toolbar: [
-            [{ header: [1, 2, 3, false] }],
+            [{ header: [1, 2, 3, 4, 5, 6, false] }],
             ["bold", "italic", "underline", "strike"],
             [{ list: "ordered" }, { list: "bullet" }],
             [{ indent: "-1" }, { indent: "+1" }],
@@ -415,15 +443,7 @@ export default function Rt2mdClient() {
         updateFloatingToolbarPosition();
       });
 
-      quill.clipboard.dangerouslyPasteHTML(`
-        <h2>2.1 网络耗时</h2>
-        <h3>2.1.1 请求发出前（客户端→Node）</h3>
-        <ul>
-          <li>DNS 解析：50~200ms（已缓存更快）</li>
-          <li>TCP/TLS 建连：100~400ms（跨地域更慢）</li>
-        </ul>
-        <pre class="ql-syntax" spellcheck="false" data-code-language="javascript" data-language="javascript">const latency = await getNetworkLatency();</pre>
-      `);
+      quill.clipboard.dangerouslyPasteHTML(initialRichTextHtml);
 
       ensureCodeLanguageMetadata();
       forceSyntaxHighlight(quill);

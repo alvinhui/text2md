@@ -17,6 +17,38 @@ if ! [[ "$PORT" =~ ^[0-9]+$ ]] || (( PORT < 1 || PORT > 65535 )); then
   exit 1
 fi
 
+STATE_DIR="/tmp/md2text-local"
+PORT_FILE="${STATE_DIR}/last-port"
+
+stop_port_if_needed() {
+  local port="$1"
+  local pids
+
+  pids="$(lsof -nP -iTCP:"${port}" -sTCP:LISTEN -t 2>/dev/null || true)"
+  if [[ -z "${pids}" ]]; then
+    return
+  fi
+
+  echo "检测到旧端口 ${port} 仍在监听，正在停止: ${pids}"
+  kill -TERM ${pids} 2>/dev/null || true
+  sleep 0.5
+
+  local remaining
+  remaining="$(lsof -nP -iTCP:"${port}" -sTCP:LISTEN -t 2>/dev/null || true)"
+  if [[ -n "${remaining}" ]]; then
+    echo "旧进程未完全退出，强制停止: ${remaining}"
+    kill -KILL ${remaining} 2>/dev/null || true
+  fi
+}
+
+mkdir -p "${STATE_DIR}"
+if [[ -f "${PORT_FILE}" ]]; then
+  LAST_PORT="$(<"${PORT_FILE}")"
+  if [[ "${LAST_PORT}" =~ ^[0-9]+$ ]] && [[ "${LAST_PORT}" != "${PORT}" ]]; then
+    stop_port_if_needed "${LAST_PORT}"
+  fi
+fi
+
 HOSTS_LINE="127.0.0.1 md2text.local"
 if ! grep -qE '(^|[[:space:]])md2text\.local($|[[:space:]])' /etc/hosts; then
   echo "$HOSTS_LINE" >> /etc/hosts
@@ -83,6 +115,8 @@ fi
 
 pfctl -f "$PF_CONF" >/dev/null
 pfctl -e >/dev/null 2>&1 || true
+
+echo "${PORT}" > "${PORT_FILE}"
 
 echo "映射完成："
 echo "  http://md2text.local  ->  http://127.0.0.1:$PORT"

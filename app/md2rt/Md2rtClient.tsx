@@ -1,37 +1,155 @@
 "use client";
 
 import createDOMPurify from "dompurify";
+import hljs from "highlight.js/lib/core";
+import bash from "highlight.js/lib/languages/bash";
+import css from "highlight.js/lib/languages/css";
+import go from "highlight.js/lib/languages/go";
+import html from "highlight.js/lib/languages/xml";
+import java from "highlight.js/lib/languages/java";
+import javascript from "highlight.js/lib/languages/javascript";
+import json from "highlight.js/lib/languages/json";
+import markdownLanguage from "highlight.js/lib/languages/markdown";
 import { marked } from "marked";
 import Link from "next/link";
+import python from "highlight.js/lib/languages/python";
+import rust from "highlight.js/lib/languages/rust";
+import sql from "highlight.js/lib/languages/sql";
+import typescript from "highlight.js/lib/languages/typescript";
+import yaml from "highlight.js/lib/languages/yaml";
 import { useCallback, useMemo, useState } from "react";
 
-marked.setOptions({
+const highlightLanguages = [
+  ["bash", bash],
+  ["css", css],
+  ["go", go],
+  ["html", html],
+  ["java", java],
+  ["javascript", javascript],
+  ["json", json],
+  ["markdown", markdownLanguage],
+  ["python", python],
+  ["rust", rust],
+  ["sql", sql],
+  ["typescript", typescript],
+  ["yaml", yaml],
+] as const;
+
+highlightLanguages.forEach(([name, language]) => {
+  if (!hljs.getLanguage(name)) {
+    hljs.registerLanguage(name, language);
+  }
+});
+
+const highlightAutoLanguages = highlightLanguages.map(([name]) => name);
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function normalizeCodeLanguage(language = ""): string {
+  const token = language.trim().toLowerCase().split(/\s+/)[0];
+  const aliases: Record<string, string> = {
+    js: "javascript",
+    jsx: "javascript",
+    md: "markdown",
+    py: "python",
+    sh: "bash",
+    shell: "bash",
+    ts: "typescript",
+    tsx: "typescript",
+    yml: "yaml",
+  };
+  return aliases[token] || token;
+}
+
+function renderHighlightedCode(code: string, rawLanguage = ""): string {
+  const language = normalizeCodeLanguage(rawLanguage);
+  const hasLanguage = Boolean(language && hljs.getLanguage(language));
+  const highlighted = hasLanguage
+    ? hljs.highlight(code, { language, ignoreIllegals: true }).value
+    : hljs.highlightAuto(code, highlightAutoLanguages).value || escapeHtml(code);
+  const languageClass = hasLanguage ? ` language-${language}` : "";
+  const dataLanguage = hasLanguage ? ` data-language="${language}"` : "";
+
+  return `<pre><code class="hljs${languageClass}"${dataLanguage}>${highlighted}</code></pre>`;
+}
+
+marked.use({
   gfm: true,
   breaks: false,
+  renderer: {
+    code({ text, lang }) {
+      return renderHighlightedCode(text, lang);
+    },
+  },
 });
 
 const INITIAL_MARKDOWN = `# Markdown 转富文本示例
 
-这是一个语雀风格的双栏编辑区，左侧写 Markdown，右侧自动转为富文本。
+这是一个语雀风格的双栏编辑区，左侧写 Markdown，右侧自动转为富文本。这个示例覆盖常用排版、表格、任务列表和多语言代码块，方便初始化后直接试复制效果。
 
-## 功能
-- 实时渲染
-- 支持表格、代码块、引用
-- 转换后可继续在右侧编辑
+## 发布清单
+- [x] 完成正文结构
+- [x] 添加表格和引用
+- [ ] 补充配图与发布渠道
+- [ ] 让同事复核技术细节
+
+> 提示：右侧是可编辑富文本区域，复制 HTML 后可粘贴到支持富文本的编辑器中继续处理。
+
+## 内容结构
+
+1. 开头用 **加粗文案** 点明结论
+2. 中间用表格对比关键数据
+3. 结尾放行动项和代码片段
+
+你也可以混合行内代码，比如 \`calculateReadingTime(article)\`，或放一个链接：[Text2MD](https://example.com)。
 
 | 字段 | 说明 |
 | --- | --- |
-| code | 行内代码如 \`test(123)\` |
-| table | 表格会保留渲染 |
+| 标题 | 支持 H1 - H6 |
+| 列表 | 支持有序、无序和任务列表 |
+| 表格 | 表格会保留表头、边框和隔行底色 |
+| code | 行内代码如 \`test(123)\`，代码块支持语法高亮 |
 
-## 代码块示例
-\`\`\`ts
-function greet(name: string): string {
-  return \`hello, \${name}\`;
+## JavaScript 示例
+\`\`\`js
+const tasks = ["parse markdown", "sanitize html", "highlight code"];
+
+for (const task of tasks) {
+  console.log(\`done: \${task}\`);
 }
-
-console.log(greet("Text2MD"));
 \`\`\`
+
+## TypeScript 示例
+\`\`\`ts
+type ArticleMeta = {
+  title: string;
+  tags: string[];
+  publishedAt?: string;
+};
+
+function getSummary(meta: ArticleMeta): string {
+  return \`\${meta.title} · \${meta.tags.join(" / ")}\`;
+}
+\`\`\`
+
+## JSON 配置
+\`\`\`json
+{
+  "output": "rich-text",
+  "syntaxHighlight": true,
+  "theme": "github-dark"
+}
+\`\`\`
+
+---
+
+最后可以用分割线收束内容，并补一句结论：Markdown 负责结构，富文本负责交付。
 `;
 
 export default function Md2rtClient() {

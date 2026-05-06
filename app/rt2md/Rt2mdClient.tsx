@@ -1,7 +1,9 @@
 "use client";
 
+import createDOMPurify from "dompurify";
+import { marked } from "marked";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import TurndownService from "turndown";
 import { gfm } from "turndown-plugin-gfm";
 import hljs from "highlight.js/lib/core";
@@ -47,6 +49,8 @@ type ActiveCodeMeta = {
   language: string;
   theme: string;
 };
+
+type OutputView = "markdown" | "preview";
 
 type QuillRange = {
   index: number;
@@ -271,7 +275,9 @@ export default function Rt2mdClient() {
 
   const [markdown, setMarkdown] = useState<string>("");
   const [copyMdText, setCopyMdText] = useState<string>("复制Markdown源码");
-  const [copyTextBtn, setCopyTextBtn] = useState<string>("清空并复制文本");
+  const [clearText, setClearText] = useState<string>("清空编辑器");
+  const [resetText, setResetText] = useState<string>("恢复示例");
+  const [outputView, setOutputView] = useState<OutputView>("markdown");
   const [activeCodeMeta, setActiveCodeMeta] = useState<ActiveCodeMeta>({
     language: "plain",
     theme: "yuque-light-pro",
@@ -281,6 +287,16 @@ export default function Rt2mdClient() {
     left: 8,
     top: 8,
   });
+
+  const previewHtml = useMemo<string>(() => {
+    const md = markdown.trim();
+    if (!md) return "<p class=\"empty\">Markdown 预览会显示在这里</p>";
+    const rendered = marked.parse(md);
+    const normalized = typeof rendered === "string" ? rendered : "";
+    if (typeof window === "undefined") return normalized;
+    const purifier = createDOMPurify(window);
+    return purifier.sanitize(normalized, { USE_PROFILES: { html: true } });
+  }, [markdown]);
 
   useEffect(() => {
     const service = new TurndownService({
@@ -498,9 +514,24 @@ export default function Rt2mdClient() {
     return true;
   }, []);
 
+  const pasteInitialExample = useCallback(() => {
+    const quill = quillRef.current;
+    if (!quill) return;
+    quill.setText("");
+    quill.clipboard.dangerouslyPasteHTML(initialRichTextHtml);
+    ensureCodeLanguageMetadata();
+    forceSyntaxHighlight(quill);
+    toMarkdown();
+    setResetText("已恢复");
+    setTimeout(() => setResetText("恢复示例"), 1200);
+  }, [ensureCodeLanguageMetadata, toMarkdown]);
+
   return (
-    <main className="container">
-      <h1>富文本与Markdown在线双向转换工具</h1>
+    <main className="container rt2md-page">
+      <header className="tool-hero">
+        <h1>富文本转 Markdown</h1>
+        <p>在本地浏览器中粘贴富文本，实时转换为干净的 Markdown，并可预览最终排版。</p>
+      </header>
       <div className="mode-switch">
         <Link className="mode-btn active" href="/rt2md">富文本 -&gt; Markdown</Link>
         <Link className="mode-btn" href="/md2rt">Markdown -&gt; 富文本</Link>
@@ -510,22 +541,34 @@ export default function Rt2mdClient() {
       <section className="panels">
         <article className="panel">
           <header className="panel-header">
-            <div className="panel-title">Rich Text Editor</div>
-            <button
-              id="copyRichBtn"
-              className="btn"
-              type="button"
-              onClick={async () => {
-                const plainText = quillRef.current?.getText().trim() || "";
-                await copyText(plainText);
-                setCopyTextBtn("已复制");
-                setTimeout(() => setCopyTextBtn("清空并复制文本"), 1200);
-                quillRef.current?.setText("");
-                toMarkdown();
-              }}
-            >
-              {copyTextBtn}
-            </button>
+            <div>
+              <div className="panel-title">Rich Text Input</div>
+              <div className="panel-subtitle">粘贴网页、文档或编辑器中的富文本内容</div>
+            </div>
+            <div className="panel-actions">
+              <button
+                id="resetRichBtn"
+                className="btn btn-light"
+                type="button"
+                onClick={pasteInitialExample}
+              >
+                {resetText}
+              </button>
+              <button
+                id="clearRichBtn"
+                className="btn"
+                type="button"
+                onClick={() => {
+                  quillRef.current?.setText("");
+                  setMarkdown("");
+                  setHasActiveCodeBlock(false);
+                  setClearText("已清空");
+                  setTimeout(() => setClearText("清空编辑器"), 1200);
+                }}
+              >
+                {clearText}
+              </button>
+            </div>
           </header>
           <div className="editor-wrap" ref={editorWrapRef}>
             <div
@@ -567,26 +610,76 @@ export default function Rt2mdClient() {
 
         <article className="panel">
           <header className="panel-header">
-            <div className="panel-title">Markdown Output</div>
-            <button
-              id="copyMarkdownBtn"
-              className="btn"
-              type="button"
-              onClick={async () => {
-                await copyText(markdown);
-                setCopyMdText("已复制");
-                setTimeout(() => setCopyMdText("复制Markdown源码"), 1200);
-              }}
-            >
-              {copyMdText}
-            </button>
+            <div>
+              <div className="panel-title">Markdown Output</div>
+              <div className="panel-subtitle">查看源码或预览渲染结果</div>
+            </div>
+            <div className="panel-actions">
+              <div className="view-toggle" aria-label="Markdown output view">
+                <button
+                  className={outputView === "markdown" ? "active" : ""}
+                  type="button"
+                  onClick={() => setOutputView("markdown")}
+                >
+                  Write
+                </button>
+                <button
+                  className={outputView === "preview" ? "active" : ""}
+                  type="button"
+                  onClick={() => setOutputView("preview")}
+                >
+                  Preview
+                </button>
+              </div>
+              <button
+                id="copyMarkdownBtn"
+                className="btn"
+                type="button"
+                onClick={async () => {
+                  await copyText(markdown);
+                  setCopyMdText("已复制");
+                  setTimeout(() => setCopyMdText("复制Markdown源码"), 1200);
+                }}
+              >
+                {copyMdText}
+              </button>
+            </div>
           </header>
           <div className="markdown-wrap">
-            <textarea id="markdownOutput" spellCheck={false} value={markdown} readOnly />
+            {outputView === "markdown" ? (
+              <textarea id="markdownOutput" spellCheck={false} value={markdown} readOnly />
+            ) : (
+              <div
+                id="markdownPreview"
+                className="rt2md-preview"
+                dangerouslySetInnerHTML={{ __html: previewHtml }}
+              />
+            )}
           </div>
         </article>
       </section>
-      <p className="tip">当前为富文本转 Markdown 页面，点击上方切换可跳到其他工具页面。</p>
+      <section className="helper-grid" aria-label="Rich text to Markdown guide">
+        <article>
+          <h2>特点</h2>
+          <p>转换在浏览器本地完成，富文本内容不会提交到服务端。编辑区和输出区并排呈现，适合整理网页、文档和知识库内容。</p>
+        </article>
+        <article>
+          <h2>支持格式</h2>
+          <ul>
+            <li>标题 H1-H6、段落、加粗、斜体、删除线</li>
+            <li>链接、图片、引用、有序列表、无序列表</li>
+            <li>带语言标记的代码块和 Markdown 预览</li>
+          </ul>
+        </article>
+        <article>
+          <h2>使用方法</h2>
+          <ol>
+            <li>在左侧粘贴或编辑富文本</li>
+            <li>检查右侧 Markdown 源码或 Preview 结果</li>
+            <li>确认无误后复制 Markdown 源码</li>
+          </ol>
+        </article>
+      </section>
     </main>
   );
 }

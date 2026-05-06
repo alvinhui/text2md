@@ -2,6 +2,28 @@
   width: min(1600px, calc(100vw - 28px));
 }
 
+.rt2md-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tool-hero {
+  text-align: center;
+}
+
+.tool-hero h1 {
+  margin-bottom: 6px;
+}
+
+.tool-hero p {
+  margin: 0 auto;
+  max-width: 760px;
+  color: #596375;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
 .panels {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -12,6 +34,45 @@
   line-height: 28px;
   height: 28px;
   padding: 0 10px;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.panel-subtitle {
+  margin-top: 2px;
+  color: #98a1b2;
+  font-size: 11px;
+}
+
+.view-toggle {
+  display: inline-flex;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid #d8dde8;
+  border-radius: 7px;
+  background: #eef1f6;
+}
+
+.view-toggle button {
+  min-width: 66px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #596375;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.view-toggle button.active {
+  background: #fff;
+  color: #1f2937;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
 }
 
 .editor-wrap,
@@ -307,13 +368,91 @@
   white-space: pre;
 }
 
+.rt2md-preview {
+  height: 100%;
+  overflow: auto;
+  background: #fff;
+}
+
+.rt2md-preview h1,
+.rt2md-preview h2,
+.rt2md-preview h3,
+.rt2md-preview h4,
+.rt2md-preview h5,
+.rt2md-preview h6 {
+  color: #1f2937;
+}
+
+.rt2md-preview h5,
+.rt2md-preview h6 {
+  margin: 0 0 10px;
+  line-height: 1.45;
+}
+
+.rt2md-preview a {
+  color: var(--primary);
+}
+
+.helper-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.helper-grid article {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px 18px;
+}
+
+.helper-grid h2 {
+  margin: 0 0 8px;
+  color: #1f2937;
+  font-size: 15px;
+}
+
+.helper-grid p,
+.helper-grid ul,
+.helper-grid ol {
+  margin: 0;
+  color: #596375;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.helper-grid ul,
+.helper-grid ol {
+  padding-left: 18px;
+}
+
 @media (max-width: 980px) {
   .panels {
+    grid-template-columns: 1fr;
+  }
+
+  .helper-grid {
     grid-template-columns: 1fr;
   }
 
   .editor-wrap,
   .markdown-wrap {
     height: 48vh;
+  }
+}
+
+@media (max-width: 620px) {
+  .panel-header {
+    height: auto;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+    flex-direction: column;
+  }
+
+  .panel-actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 }

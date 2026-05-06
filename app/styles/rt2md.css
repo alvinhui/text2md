@@ -60,7 +60,29 @@
   margin: 8px 0;
 }
 
+#editor .ql-editor .ql-code-block-container {
+  position: relative;
+  padding-top: 28px;
+  border-radius: 10px;
+  border: 1px solid #dbe2ee;
+  background: #f8fafc;
+  color: #1f2937;
+  margin: 8px 0;
+  overflow: hidden;
+}
+
+#editor .ql-editor .ql-code-block-container .ql-code-block {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+}
+
 #editor .ql-editor pre.ql-syntax[data-code-theme="yuque-dark-pro"] {
+  background: #1f2430;
+  border-color: #394154;
+  color: #d6deeb;
+}
+
+#editor .ql-editor .ql-code-block-container[data-code-theme="yuque-dark-pro"] {
   background: #1f2430;
   border-color: #394154;
   color: #d6deeb;
@@ -72,7 +94,19 @@
   color: #24292f;
 }
 
+#editor .ql-editor .ql-code-block-container[data-code-theme="github-light"] {
+  background: #f6f8fa;
+  border-color: #d0d7de;
+  color: #24292f;
+}
+
 #editor .ql-editor pre.ql-syntax[data-code-theme="dracula"] {
+  background: #282a36;
+  border-color: #44475a;
+  color: #f8f8f2;
+}
+
+#editor .ql-editor .ql-code-block-container[data-code-theme="dracula"] {
   background: #282a36;
   border-color: #44475a;
   color: #f8f8f2;
@@ -95,7 +129,40 @@
   pointer-events: none;
 }
 
+#editor .ql-editor .ql-code-block-container[data-code-language]:not([data-code-language="plain"])::before {
+  content: attr(data-code-language);
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(15, 23, 42, 0.04);
+  color: #64748b;
+  font-size: 11px;
+  line-height: 18px;
+  height: 18px;
+  padding: 0 7px;
+  text-transform: lowercase;
+  pointer-events: none;
+}
+
 #editor .ql-editor pre.ql-syntax[data-code-theme]::after {
+  content: attr(data-code-theme-label);
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(15, 23, 42, 0.04);
+  color: #64748b;
+  font-size: 11px;
+  line-height: 18px;
+  height: 18px;
+  padding: 0 7px;
+  pointer-events: none;
+}
+
+#editor .ql-editor .ql-code-block-container[data-code-theme]::after {
   content: attr(data-code-theme-label);
   position: absolute;
   top: 6px;

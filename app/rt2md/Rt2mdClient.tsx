@@ -89,6 +89,7 @@ const codeThemeOptions: CodeThemeOption[] = [
   { value: "github-light", label: "GitHub Light" },
   { value: "dracula", label: "Dracula" },
 ];
+const CODE_BLOCK_SELECTOR = "pre.ql-syntax, .ql-code-block-container";
 
 function getFenceByCode(codeText: string): string {
   const matches = codeText.match(/`+/g) || [];
@@ -117,6 +118,7 @@ function getCodeThemeLabel(themeValue: string): string {
 
 export default function Rt2mdClient() {
   const editorRef = useRef<HTMLDivElement | null>(null);
+  const editorWrapRef = useRef<HTMLDivElement | null>(null);
   const quillRef = useRef<QuillInstance | null>(null);
   const turndownServiceRef = useRef<TurndownService | null>(null);
 
@@ -128,6 +130,10 @@ export default function Rt2mdClient() {
     theme: "yuque-light-pro",
   });
   const [hasActiveCodeBlock, setHasActiveCodeBlock] = useState<boolean>(false);
+  const [toolbarPosition, setToolbarPosition] = useState<{ left: number; top: number }>({
+    left: 8,
+    top: 8,
+  });
 
   useEffect(() => {
     const service = new TurndownService({
@@ -141,18 +147,20 @@ export default function Rt2mdClient() {
       filter(node: Node) {
         const elementNode = node as Element;
         const isPre = elementNode.nodeName === "PRE";
+        const isCodeBlockContainer = elementNode.classList.contains("ql-code-block-container");
         const classList = elementNode.classList;
         const hasQuillSyntax = Boolean(isPre && classList && classList.contains("ql-syntax"));
         const hasLanguageHint = Boolean(
-          isPre &&
+          (isPre || isCodeBlockContainer) &&
             (elementNode.hasAttribute("data-code-language") ||
               /language-[\w-]+/i.test(elementNode.getAttribute("class") || ""))
         );
-        return hasQuillSyntax || hasLanguageHint;
+        return hasQuillSyntax || isCodeBlockContainer || hasLanguageHint;
       },
       replacement(_content: string, node: Node) {
-        const elementNode = node as Element;
-        const codeText = (elementNode.textContent || "").replace(/\n$/, "");
+        const elementNode = node as HTMLElement;
+        const rawText = elementNode.innerText || elementNode.textContent || "";
+        const codeText = rawText.replace(/\n$/, "");
         const language = getCodeLanguageFromNode(elementNode);
         const fence = getFenceByCode(codeText);
         const langToken = language === "plain" ? "" : language;
@@ -165,15 +173,15 @@ export default function Rt2mdClient() {
   const ensureCodeLanguageMetadata = useCallback(() => {
     const quill = quillRef.current;
     if (!quill) return;
-    quill.root.querySelectorAll<HTMLPreElement>("pre.ql-syntax").forEach((pre) => {
-      if (!pre.getAttribute("data-code-language")) {
-        pre.setAttribute("data-code-language", "plain");
+    quill.root.querySelectorAll<HTMLElement>(CODE_BLOCK_SELECTOR).forEach((block) => {
+      if (!block.getAttribute("data-code-language")) {
+        block.setAttribute("data-code-language", "plain");
       }
-      if (!pre.getAttribute("data-code-theme")) {
-        pre.setAttribute("data-code-theme", "yuque-light-pro");
+      if (!block.getAttribute("data-code-theme")) {
+        block.setAttribute("data-code-theme", "yuque-light-pro");
       }
-      const theme = getCodeThemeFromNode(pre);
-      pre.setAttribute("data-code-theme-label", getCodeThemeLabel(theme));
+      const theme = getCodeThemeFromNode(block);
+      block.setAttribute("data-code-theme-label", getCodeThemeLabel(theme));
     });
   }, []);
 
@@ -185,7 +193,7 @@ export default function Rt2mdClient() {
     setMarkdown(service.turndown(quill.root.innerHTML).trim());
   }, [ensureCodeLanguageMetadata]);
 
-  const getActiveCodeBlock = useCallback((): HTMLPreElement | null => {
+  const getActiveCodeBlock = useCallback((): HTMLElement | null => {
     const quill = quillRef.current;
     if (!quill) return null;
     const range = quill.getSelection();
@@ -193,12 +201,32 @@ export default function Rt2mdClient() {
     const [line] = quill.getLine(range.index);
     const lineNode = line?.domNode;
     if (!lineNode || !(lineNode instanceof HTMLElement)) return null;
-    if (lineNode.tagName === "PRE") return lineNode as HTMLPreElement;
-    return lineNode.closest("pre.ql-syntax");
+    if (lineNode.matches(CODE_BLOCK_SELECTOR)) return lineNode;
+    return lineNode.closest(CODE_BLOCK_SELECTOR);
   }, []);
+
+  const updateFloatingToolbarPosition = useCallback(() => {
+    const wrap = editorWrapRef.current;
+    const block = getActiveCodeBlock();
+    if (!wrap || !block) return;
+
+    const wrapRect = wrap.getBoundingClientRect();
+    const blockRect = block.getBoundingClientRect();
+    const panelWidth = 360;
+    let left = blockRect.left - wrapRect.left;
+    let top = blockRect.top - wrapRect.top - 42;
+
+    if (top < 50) {
+      top = blockRect.bottom - wrapRect.top + 6;
+    }
+    left = Math.max(8, Math.min(left, wrapRect.width - panelWidth - 8));
+
+    setToolbarPosition({ left, top });
+  }, [getActiveCodeBlock]);
 
   useEffect(() => {
     let mounted = true;
+    let dispose: (() => void) | undefined;
     async function setup() {
       const quillModule = await import("quill");
       const Quill = quillModule.default as unknown as QuillConstructor;
@@ -230,6 +258,7 @@ export default function Rt2mdClient() {
             language: getCodeLanguageFromNode(codeBlock),
             theme: getCodeThemeFromNode(codeBlock),
           });
+          updateFloatingToolbarPosition();
         } else {
           setHasActiveCodeBlock(false);
         }
@@ -246,6 +275,7 @@ export default function Rt2mdClient() {
           language: getCodeLanguageFromNode(codeBlock),
           theme: getCodeThemeFromNode(codeBlock),
         });
+        updateFloatingToolbarPosition();
       });
 
       quill.clipboard.dangerouslyPasteHTML(`
@@ -260,13 +290,30 @@ export default function Rt2mdClient() {
 
       ensureCodeLanguageMetadata();
       toMarkdown();
+      updateFloatingToolbarPosition();
+
+      const onWindowResize = () => {
+        updateFloatingToolbarPosition();
+      };
+      const editorScroller = quill.root;
+      const onEditorScroll = () => {
+        updateFloatingToolbarPosition();
+      };
+      window.addEventListener("resize", onWindowResize);
+      editorScroller.addEventListener("scroll", onEditorScroll);
+
+      dispose = () => {
+        window.removeEventListener("resize", onWindowResize);
+        editorScroller.removeEventListener("scroll", onEditorScroll);
+      };
     }
-    setup();
+    void setup();
     return () => {
       mounted = false;
+      dispose?.();
       quillRef.current = null;
     };
-  }, [ensureCodeLanguageMetadata, getActiveCodeBlock, toMarkdown]);
+  }, [ensureCodeLanguageMetadata, getActiveCodeBlock, toMarkdown, updateFloatingToolbarPosition]);
 
   const applyCodeMeta = useCallback(
     (nextLanguage: string | null, nextTheme: string | null) => {
@@ -280,8 +327,9 @@ export default function Rt2mdClient() {
         block.setAttribute("data-code-theme-label", getCodeThemeLabel(nextTheme));
       }
       toMarkdown();
+      updateFloatingToolbarPosition();
     },
-    [getActiveCodeBlock, toMarkdown]
+    [getActiveCodeBlock, toMarkdown, updateFloatingToolbarPosition]
   );
 
   const copyText = useCallback(async (text: string): Promise<boolean> => {
@@ -319,8 +367,11 @@ export default function Rt2mdClient() {
               {copyTextBtn}
             </button>
           </header>
-          <div className="editor-wrap">
-            <div className={`code-floating-toolbar ${hasActiveCodeBlock ? "visible" : ""}`}>
+          <div className="editor-wrap" ref={editorWrapRef}>
+            <div
+              className={`code-floating-toolbar ${hasActiveCodeBlock ? "visible" : ""}`}
+              style={{ left: `${toolbarPosition.left}px`, top: `${toolbarPosition.top}px` }}
+            >
               <span className="toolbar-label">语言</span>
               <select
                 id="floatingCodeLanguage"

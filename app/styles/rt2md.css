@@ -1,5 +1,5 @@
 .container {
-  width: min(1360px, calc(100vw - 28px));
+  width: min(1600px, calc(100vw - 28px));
 }
 
 .panels {
@@ -46,7 +46,7 @@
   font-size: 15px;
   line-height: 1.9;
   padding: 18px 22px;
-  max-width: 860px;
+  max-width: 1120px;
   margin: 0 auto;
 }
 

@@ -42,14 +42,67 @@ s.close()
 PY
 )"
 
+READY_TIMEOUT_SEC=30
+POLL_INTERVAL_SEC=0.2
+
+npm run dev -- --port "${PORT}" &
+DEV_PID=$!
+
+cleanup() {
+  if kill -0 "${DEV_PID}" 2>/dev/null; then
+    kill -TERM "${DEV_PID}" 2>/dev/null || true
+  fi
+}
+
+trap cleanup INT TERM
+
+wait_for_port_ready() {
+  local deadline
+  deadline="$(python3 - <<PY
+import time
+print(time.time() + ${READY_TIMEOUT_SEC})
+PY
+)"
+
+  while true; do
+    if ! kill -0 "${DEV_PID}" 2>/dev/null; then
+      wait "${DEV_PID}" || true
+      echo "Next.js 启动失败，进程已退出。"
+      exit 1
+    fi
+
+    if lsof -nP -iTCP:"${PORT}" -sTCP:LISTEN -t >/dev/null 2>&1; then
+      return
+    fi
+
+    local now
+    now="$(python3 - <<'PY'
+import time
+print(time.time())
+PY
+)"
+    if [[ "$(python3 - <<PY
+print(1 if ${now} >= ${deadline} else 0)
+PY
+)" == "1" ]]; then
+      echo "等待端口 ${PORT} 启动超时（${READY_TIMEOUT_SEC}s）。"
+      cleanup
+      exit 1
+    fi
+
+    sleep "${POLL_INTERVAL_SEC}"
+  done
+}
+
+wait_for_port_ready
+
+echo "${PORT}" > "${PORT_FILE}"
+
 echo "已选择随机端口: ${PORT}"
 echo "本地访问: http://127.0.0.1:${PORT}"
 echo "如需无端口访问，请执行:"
 echo "  sudo bash scripts/map-md2text-local.sh ${PORT}"
 echo ""
+echo "已启用 Next.js 开发模式，保存后会自动热更新（端口保持不变）。"
 
-echo "${PORT}" > "${PORT_FILE}"
-
-echo "已启用 src/server 文件监听，保存后会自动重启服务（端口保持不变）。"
-
-exec node --watch src/server "${PORT}"
+wait "${DEV_PID}"

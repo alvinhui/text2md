@@ -4,7 +4,19 @@
   "private": true,
   "description": "Rich text to markdown web tool",
   "scripts": {
-    "start": "node src/server 8080",
+    "dev": "next dev -H 0.0.0.0",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0 -p 8080",
     "start:local": "bash scripts/start-local.sh"
+  },
+  "dependencies": {
+    "dompurify": "^3.3.0",
+    "marked": "^16.3.0",
+    "next": "^16.0.0",
+    "quill": "^2.0.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "turndown": "^7.2.1",
+    "turndown-plugin-gfm": "^1.0.2"
   }
 }

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import TurndownService from "turndown";
 import { gfm } from "turndown-plugin-gfm";
+import PreviewSurface from "../components/PreviewSurface";
 
 type Wx2mdApiSuccess = {
   ok: true;
@@ -294,7 +295,11 @@ export default function Wx2mdClient() {
               value={markdown}
               onChange={(event) => setMarkdown(event.target.value)}
             />
-            <div id="markdownPreview" dangerouslySetInnerHTML={{ __html: previewHtml }} />
+            <PreviewSurface
+              id="markdownPreview"
+              html={previewHtml}
+              emptyHtml={'<p class="empty">Markdown 预览会显示在这里</p>'}
+            />
           </div>
         </div>
       </section>

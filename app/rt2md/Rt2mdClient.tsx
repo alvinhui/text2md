@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import TurndownService from "turndown";
 import { gfm } from "turndown-plugin-gfm";
+import PreviewSurface from "../components/PreviewSurface";
 import hljs from "highlight.js/lib/core";
 import bash from "highlight.js/lib/languages/bash";
 import c from "highlight.js/lib/languages/c";
@@ -726,10 +727,11 @@ export default function Rt2mdClient() {
             {outputView === "markdown" ? (
               <textarea id="markdownOutput" spellCheck={false} value={markdown} readOnly wrap="soft" />
             ) : (
-              <div
+              <PreviewSurface
                 id="markdownPreview"
                 className="rt2md-preview"
-                dangerouslySetInnerHTML={{ __html: previewHtml }}
+                html={previewHtml}
+                emptyHtml={'<p class="empty">Markdown 预览会显示在这里</p>'}
               />
             )}
           </div>

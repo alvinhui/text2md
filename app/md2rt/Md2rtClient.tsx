@@ -18,6 +18,7 @@ import sql from "highlight.js/lib/languages/sql";
 import typescript from "highlight.js/lib/languages/typescript";
 import yaml from "highlight.js/lib/languages/yaml";
 import { useCallback, useMemo, useState } from "react";
+import PreviewSurface from "../components/PreviewSurface";
 
 const highlightLanguages = [
   ["bash", bash],
@@ -244,11 +245,11 @@ export default function Md2rtClient() {
             <button id="copyRichHtmlBtn" className="btn" type="button" onClick={handleCopyHtml}>{copyText}</button>
           </header>
           <div className="rich-wrap">
-            <div
+            <PreviewSurface
               id="richOutputEditor"
+              html={safeHtml}
               contentEditable
-              suppressContentEditableWarning
-              dangerouslySetInnerHTML={{ __html: safeHtml }}
+              emptyHtml="<p><br></p>"
             />
           </div>
         </article>

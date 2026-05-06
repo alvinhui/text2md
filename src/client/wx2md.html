@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>微信文章 -> Markdown</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="stylesheet" href="/assets/css/common.css" />
+  <link rel="stylesheet" href="/assets/css/wx2md.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>富文本与Markdown在线双向转换工具</h1>
+    <div class="mode-switch">
+      <a class="mode-btn" href="/rt2md">富文本 -> Markdown</a>
+      <a class="mode-btn" href="/md2rt">Markdown -> 富文本</a>
+      <a class="mode-btn active" href="/wx2md">微信文章 -> Markdown</a>
+    </div>
+
+    <section class="panel">
+      <header class="panel-header">
+        <div class="panel-title">输入公众号文章地址并转换为 Markdown</div>
+      </header>
+
+      <div class="panel-body">
+        <div class="url-row">
+          <input id="wechatUrl" type="url" placeholder="粘贴微信文章链接，例如 https://mp.weixin.qq.com/s/xxxx" />
+          <button id="convertBtn" class="btn" type="button">开始转换</button>
+        </div>
+
+        <p id="status"></p>
+
+        <div class="actions">
+          <button id="copyMarkdownBtn" class="btn" type="button">复制 Markdown</button>
+          <button id="downloadMarkdownBtn" class="btn btn-light" type="button">下载 .md 文件</button>
+          <button id="clearBtn" class="btn btn-light" type="button">清空</button>
+          <div class="view-switch">
+            <button id="viewDualBtn" class="view-btn active" type="button">双栏</button>
+            <button id="viewEditorBtn" class="view-btn" type="button">仅编辑器</button>
+            <button id="viewPreviewBtn" class="view-btn" type="button">仅预览</button>
+          </div>
+        </div>
+
+        <div id="resultGrid" class="result-grid">
+          <textarea id="markdownOutput" spellcheck="false" placeholder="转换结果会显示在这里"></textarea>
+          <div id="markdownPreview"><p class="empty">Markdown 预览会显示在这里</p></div>
+        </div>
+      </div>
+    </section>
+
+    <p class="tip">
+      当前页面会自动尝试多个公开代理抓取正文并转换为 Markdown。<br />
+      若某个代理证书或网络异常，会自动切换到下一个代理。
+    </p>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/turndown@7.2.0/dist/turndown.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/turndown-plugin-gfm@1.0.2/dist/turndown-plugin-gfm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/lib/marked.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+  <script src="/assets/js/wx2md.js"></script>
+</body>
+</html>

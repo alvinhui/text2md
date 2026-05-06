@@ -50,6 +50,6 @@ echo ""
 
 echo "${PORT}" > "${PORT_FILE}"
 
-echo "已启用 server.js 文件监听，保存后会自动重启服务（端口保持不变）。"
+echo "已启用 src/server 文件监听，保存后会自动重启服务（端口保持不变）。"
 
-exec node --watch server.js "${PORT}"
+exec node --watch src/server "${PORT}"

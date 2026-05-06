@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Markdown -> 富文本</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="stylesheet" href="/assets/css/common.css" />
+  <link rel="stylesheet" href="/assets/css/md2rt.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>富文本与Markdown在线双向转换工具</h1>
+    <div class="mode-switch">
+      <a class="mode-btn" href="/rt2md">富文本 -> Markdown</a>
+      <a class="mode-btn active" href="/md2rt">Markdown -> 富文本</a>
+      <a class="mode-btn" href="/wx2md">微信文章 -> Markdown</a>
+    </div>
+
+    <section class="panels">
+      <article class="panel">
+        <header class="panel-header">
+          <div class="panel-title">Markdown Editor（语雀风格）</div>
+          <button id="clearMarkdownInputBtn" class="btn btn-light" type="button">清空输入</button>
+        </header>
+        <div class="md-input-wrap">
+          <div class="md-toolbar">
+            <button class="md-tool-btn" data-insert="# " type="button">H1</button>
+            <button class="md-tool-btn" data-insert="## " type="button">H2</button>
+            <button class="md-tool-btn" data-insert="**加粗**" type="button">粗体</button>
+            <button class="md-tool-btn" data-insert="*斜体*" type="button">斜体</button>
+            <button class="md-tool-btn" data-insert="- 列表项" type="button">列表</button>
+            <button class="md-tool-btn" data-insert="> 引用" type="button">引用</button>
+            <button class="md-tool-btn" data-insert="\n```js\nconsole.log('hello');\n```\n" type="button">代码块</button>
+            <button class="md-tool-btn" data-insert="[链接文本](https://example.com)" type="button">链接</button>
+            <button class="md-tool-btn" data-insert="\n| 列1 | 列2 |\n| --- | --- |\n| 内容A | 内容B |\n" type="button">表格</button>
+          </div>
+          <textarea id="markdownInput" spellcheck="false"></textarea>
+        </div>
+      </article>
+
+      <article class="panel">
+        <header class="panel-header">
+          <div class="panel-title">Rich Text Output</div>
+          <button id="copyRichHtmlBtn" class="btn" type="button">复制富文本HTML</button>
+        </header>
+        <div class="rich-wrap">
+          <div id="richOutputEditor" contenteditable="true"></div>
+        </div>
+      </article>
+    </section>
+    <p class="tip">当前为 Markdown 转富文本页面，点击上方切换可跳到其他工具页面。</p>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/lib/marked.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+  <script src="/assets/js/md2rt.js"></script>
+</body>
+</html>

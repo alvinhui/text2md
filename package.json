@@ -4,7 +4,7 @@
   "private": true,
   "description": "Rich text to markdown web tool",
   "scripts": {
-    "start": "node server.js 8080",
+    "start": "node src/server 8080",
     "start:local": "bash scripts/start-local.sh"
   }
 }

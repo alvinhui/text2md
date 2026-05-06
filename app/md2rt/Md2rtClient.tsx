@@ -4,6 +4,7 @@ import createDOMPurify from "dompurify";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import PreviewSurface from "../components/PreviewSurface";
+import { copyWithFallback } from "../utils/copy";
 import { renderMarkdownToHtml } from "../utils/markdown-renderer";
 
 const INITIAL_MARKDOWN = `# Markdown 转富文本示例
@@ -84,7 +85,14 @@ export default function Md2rtClient() {
 
   const handleCopyHtml = useCallback(async () => {
     if (!safeHtml) return;
-    await navigator.clipboard.writeText(safeHtml);
+    const copied = await copyWithFallback(safeHtml);
+
+    if (!copied) {
+      setCopyText("复制失败");
+      setTimeout(() => setCopyText("复制富文本HTML"), 1200);
+      return;
+    }
+
     setCopyText("已复制");
     setTimeout(() => setCopyText("复制富文本HTML"), 1200);
   }, [safeHtml]);

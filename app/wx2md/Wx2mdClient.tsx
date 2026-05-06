@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import TurndownService from "turndown";
 import { gfm } from "turndown-plugin-gfm";
 import PreviewSurface from "../components/PreviewSurface";
+import { copyWithFallback } from "../utils/copy";
 import { renderMarkdownToHtml } from "../utils/markdown-renderer";
 
 type Wx2mdApiSuccess = {
@@ -195,6 +196,19 @@ export default function Wx2mdClient() {
     }
   }
 
+  async function copyMarkdown(): Promise<void> {
+    if (!markdown.trim()) return;
+    const copied = await copyWithFallback(markdown);
+
+    if (!copied) {
+      setStatus({ text: "复制失败，请检查浏览器权限后重试", isError: true });
+      return;
+    }
+
+    setCopyText("已复制");
+    setTimeout(() => setCopyText("复制 Markdown"), 1200);
+  }
+
   return (
     <main className="container">
       <h1>富文本与Markdown在线双向转换工具</h1>
@@ -235,12 +249,7 @@ export default function Wx2mdClient() {
               id="copyMarkdownBtn"
               className="btn"
               type="button"
-              onClick={async () => {
-                if (!markdown.trim()) return;
-                await navigator.clipboard.writeText(markdown);
-                setCopyText("已复制");
-                setTimeout(() => setCopyText("复制 Markdown"), 1200);
-              }}
+              onClick={() => void copyMarkdown()}
             >
               {copyText}
             </button>

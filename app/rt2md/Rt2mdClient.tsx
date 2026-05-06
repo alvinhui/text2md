@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import TurndownService from "turndown";
 import { gfm } from "turndown-plugin-gfm";
 import PreviewSurface from "../components/PreviewSurface";
+import { copyWithFallback } from "../utils/copy";
 import { renderMarkdownToHtml } from "../utils/markdown-renderer";
 import hljs from "highlight.js/lib/core";
 import bash from "highlight.js/lib/languages/bash";
@@ -297,16 +298,40 @@ function getCodeThemeLabel(themeValue: string): string {
 }
 
 function getCodeTextFromBlock(block: HTMLElement): string {
+  const normalizeCodeLineWhitespace = (value: string): string =>
+    value
+      .replace(/\u00a0/g, " ")
+      .replace(/[\u200b\u200c\u200d\ufeff]/g, "");
+
+  const extractExactLineText = (line: HTMLElement): string => {
+    let result = "";
+    line.childNodes.forEach((node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        result += node.nodeValue || "";
+        return;
+      }
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const element = node as HTMLElement;
+        if (element.classList.contains("ql-tab")) {
+          result += "\t";
+          return;
+        }
+        result += element.textContent || "";
+      }
+    });
+    return result;
+  };
+
   if (block.classList.contains("ql-code-block-container")) {
     return Array.from(block.querySelectorAll<HTMLElement>(".ql-code-block"))
-      .map((line) => line.textContent || "")
+      .map((line) => normalizeCodeLineWhitespace(extractExactLineText(line)))
       .join("\n")
       .replace(/\n$/, "");
   }
 
   const clone = block.cloneNode(true) as HTMLElement;
   clone.querySelectorAll(".ql-ui").forEach((node) => node.remove());
-  return (clone.innerText || clone.textContent || "").replace(/\n$/, "");
+  return normalizeCodeLineWhitespace(clone.textContent || "").replace(/\n$/, "");
 }
 
 function detectCodeLanguage(codeText: string): string {
@@ -373,6 +398,7 @@ export default function Rt2mdClient() {
       hr: "---",
       bulletListMarker: "-",
       codeBlockStyle: "fenced",
+      preformattedCode: true,
     });
     service.use(gfm as never);
     service.addRule("quillTable", {
@@ -586,9 +612,7 @@ export default function Rt2mdClient() {
   );
 
   const copyText = useCallback(async (text: string): Promise<boolean> => {
-    if (!text) return false;
-    await navigator.clipboard.writeText(text);
-    return true;
+    return copyWithFallback(text);
   }, []);
 
   const pasteInitialExample = useCallback(() => {
